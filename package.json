@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:test": "tsc -b && vite build --mode testsite --outDir dist-test",
+    "deploy:test": "node scripts/deploy-test.mjs",
     "preview": "vite preview",
     "generate-pwa-assets": "pwa-assets-generator",
     "test": "vitest run"

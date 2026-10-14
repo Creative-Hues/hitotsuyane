@@ -4,7 +4,9 @@
 // タブバーのすぐ上に、どのタブからでも押せる「変わったことに気づいた」ボタンを置く(SPEC.md 17.1)
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { TabBar, type TabKey } from './components/common/TabBar';
+import { TestSiteBanner } from './components/common/TestSiteBanner';
 import { UpdateNoticeBar } from './components/common/UpdateNoticeBar';
+import { IS_TEST_SITE } from './lib/appTarget';
 import { SwitchRecordSheet } from './components/switch/SwitchRecordSheet';
 import { useLiveQuery } from './hooks/useLiveQuery';
 import { useUpdateNotice } from './hooks/useUpdateNotice';
@@ -94,16 +96,22 @@ function App() {
 
   return (
     <>
-      {updateNotice.visible && (
-        <UpdateNoticeBar
-          kind={updateNotice.kind}
-          onOpenBackup={() => {
-            handleSelectTab('alters');
-            setBackupRequest((count) => count + 1);
-          }}
-          onUpdate={updateNotice.update}
-          onDismiss={updateNotice.dismiss}
-        />
+      {/* 画面の上の帯(テスト版の帯・更新のお知らせ)。スクロールしても上に残す */}
+      {(IS_TEST_SITE || updateNotice.visible) && (
+        <div className="top-bars">
+          {IS_TEST_SITE && <TestSiteBanner />}
+          {updateNotice.visible && (
+            <UpdateNoticeBar
+              kind={updateNotice.kind}
+              onOpenBackup={() => {
+                handleSelectTab('alters');
+                setBackupRequest((count) => count + 1);
+              }}
+              onUpdate={updateNotice.update}
+              onDismiss={updateNotice.dismiss}
+            />
+          )}
+        </div>
       )}
       {(Object.keys(panels) as TabKey[]).map((key) => (
         <div key={key} hidden={key !== tab}>

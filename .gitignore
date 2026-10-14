@@ -2,3 +2,5 @@ node_modules
 dist
 dev-dist
 *.local
+dist-test
+.deploy-test

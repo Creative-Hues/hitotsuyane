@@ -28,6 +28,7 @@ import {
   upgradeAlterToV2,
   type AlterV1,
 } from './initialData';
+import { DB_NAME } from '../lib/appTarget';
 
 export class AppDatabase extends Dexie {
   alters!: EntityTable<Alter, 'id'>;
@@ -47,9 +48,10 @@ export class AppDatabase extends Dexie {
   switchLogs!: EntityTable<SwitchLog, 'id'>;
   meta!: EntityTable<AppMeta, 'key'>;
 
-  // データベースの名前は、URL を変えても(SPEC.md 19章)以前のまま変えない。
-  // 端末の中だけの名前で、画面にもリンクにも出ない。変えると、同じ場所に保存されていたデータを読めなくなるため
-  constructor(name = 'did-todo') {
+  // データベースの名前は src/lib/appTarget.ts で決める(SPEC.md 19章・21章)。
+  // 本番は、URL を変えても以前の名前のまま変えない(変えると、同じ場所に保存されていたデータを読めなくなるため)。
+  // テスト版は、本番のデータに触れないよう別の名前にする
+  constructor(name = DB_NAME) {
     super(name);
     // 最初の項目が主キー、以降は検索に使う項目(インデックス)
     // 版1は消さずに残す(古い版のデータから順に引き継ぐため)

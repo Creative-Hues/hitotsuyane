@@ -31,10 +31,26 @@ jobs:
 
       # 公開先のパスがすべて /hitotsuyane/ になっていて、古い名前が残っていないか確かめる(SPEC.md 19.3)
       - run: |
-          ! grep -rl "/did-todo/" dist
+          # 「! grep」は複数行の途中だと失敗にならないので、if で確かめる
+          if grep -rl "/did-todo/" dist; then exit 1; fi
           grep -q '"start_url":"/hitotsuyane/"' dist/manifest.webmanifest
           grep -q '"scope":"/hitotsuyane/"' dist/manifest.webmanifest
           grep -q 'src="/hitotsuyane/' dist/index.html
+
+      # 本番のビルドに、テスト版のデータベースの名前が入っていないか確かめる(SPEC.md 21章)
+      - run: "! grep -rl 'hitotsuyane-test' dist"
+
+      # テスト版のビルド(SPEC.md 21章)
+      - run: npm run build:test
+
+      # テスト版のビルドに、本番のデータベースの名前(did-todo)が1つもないこと(本番のデータに触れないこと)と、
+      # 公開先・ホーム画面の名前がテスト版のものになっていることを確かめる
+      - run: |
+          if grep -rl "did-todo" dist-test; then exit 1; fi
+          grep -q '"start_url":"/hitotsuyane-test/"' dist-test/manifest.webmanifest
+          grep -q '"scope":"/hitotsuyane-test/"' dist-test/manifest.webmanifest
+          grep -q '"short_name":"テストやね"' dist-test/manifest.webmanifest
+          grep -q 'src="/hitotsuyane-test/' dist-test/index.html
 
       # ビルドした中身を、画面の確認用に残す(7日で消える)
       - uses: actions/upload-artifact@v4

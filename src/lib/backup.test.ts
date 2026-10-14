@@ -41,8 +41,9 @@ function exportedJson(data: BackupData = emptyData()): Record<string, unknown> {
 
 describe('バックアップのファイル名', () => {
   it('実際の日付を使う(朝5時前でも前日にしない)', () => {
-    expect(backupFileName(new Date(2026, 8, 28, 4, 59))).toBe('minna-todo-backup-2026-09-28.json');
-    expect(backupFileName(new Date(2026, 0, 5, 12, 0))).toBe('minna-todo-backup-2026-01-05.json');
+    expect(backupFileName(new Date(2026, 8, 28, 4, 59))).toBe('hitotsuyane-backup-2026-09-28.json');
+    expect(backupFileName(new Date(2026, 0, 5, 12, 0))).toBe('hitotsuyane-backup-2026-01-05.json');
+    expect(backupFileName(new Date(2026, 0, 5, 12, 0), true)).toBe('hitotsuyane-backup-test-2026-01-05.json');
   });
 });
 

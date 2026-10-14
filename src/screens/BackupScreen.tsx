@@ -14,6 +14,7 @@ import {
   serializeBackup,
   type BackupFile,
 } from '../lib/backup';
+import { IS_TEST_SITE } from '../lib/appTarget';
 import { browserSaveDeps, saveFile } from '../lib/saveFile';
 import { formatDateTime } from '../lib/timeFormat';
 
@@ -42,7 +43,7 @@ export function BackupScreen({ onBack }: Props) {
     }
     setNotice(null);
     const exportedAt = new Date();
-    const file = new File([serializeBackup(buildBackup(currentData, exportedAt, currentSettings))], backupFileName(exportedAt), {
+    const file = new File([serializeBackup(buildBackup(currentData, exportedAt, currentSettings))], backupFileName(exportedAt, IS_TEST_SITE), {
       type: 'application/json',
     });
     try {

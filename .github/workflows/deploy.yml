@@ -37,6 +37,9 @@ jobs:
 
       - run: npm run build
 
+      # 本番に、テスト版のデータベースの名前が入っていないか確かめる(SPEC.md 21章)
+      - run: "! grep -rl 'hitotsuyane-test' dist"
+
       - uses: actions/configure-pages@v6
 
       # ビルド結果(dist)を公開用にアップロードする

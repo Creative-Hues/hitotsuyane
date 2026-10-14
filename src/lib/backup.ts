@@ -6,7 +6,7 @@ import { DEFAULT_TERM, normalizeTerm } from './term';
 export type { BackupData } from './backupSchema';
 
 /**
- * このアプリのバックアップであることを示す印(ファイル名にも使う)。
+ * このアプリのバックアップであることを示す印(ファイルの中に入れる)。
  * アプリの名前は「ひとつやね」に変わったが、今までのバックアップを読み込めるよう、以前の名前のまま変えない(SPEC.md 12章)
  */
 const APP_ID = 'minna-todo';
@@ -72,9 +72,13 @@ export function serializeBackup(backup: BackupFile): string {
   return JSON.stringify(backup, null, 2);
 }
 
-/** ファイル名(例:minna-todo-backup-2026-09-28.json)。日付は実際の日付 */
-export function backupFileName(now: Date): string {
-  return `${APP_ID}-backup-${toCalendarDate(now)}.json`;
+/**
+ * ファイル名(例:hitotsuyane-backup-2026-09-28.json)。日付は実際の日付。
+ * テスト版は hitotsuyane-backup-test-2026-09-28.json(本番のファイルと見分けるため。SPEC.md 21章)。
+ * 読み込みのときはファイル名を見ないので、名前を変えても今までのファイル(minna-todo-backup-…)を読み込める
+ */
+export function backupFileName(now: Date, testSite = false): string {
+  return `hitotsuyane-backup${testSite ? '-test' : ''}-${toCalendarDate(now)}.json`;
 }
 
 export type ParseBackupResult = { ok: true; backup: BackupFile } | { ok: false; reason: string };

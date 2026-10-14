@@ -1694,10 +1694,36 @@ body {
 /* ---- フェーズ16:更新のお知らせ(SPEC.md 18章) ---- */
 
 /* 画面の上の帯。スクロールしても上に残る(sticky)。画面全体はおおわない */
-.update-notice {
+/* 画面の上の帯(テスト版の帯・更新のお知らせ)をまとめて、スクロールしても上に残す */
+.top-bars {
   position: sticky;
   top: 0;
   z-index: 12;
+}
+
+/* テスト版の帯(SPEC.md 21章)。本番と見分けられるよう、ほかにない色の帯にする */
+.test-site-banner {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  padding: calc(4px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 4px
+    calc(16px + env(safe-area-inset-left));
+  background: #5b2a86;
+  color: #fff;
+  font-size: 0.875rem;
+}
+
+.test-site-banner__note {
+  font-size: 0.75rem;
+}
+
+/* テスト版の帯の下に出るときは、ノッチの分の余白を帯の側でとる */
+.test-site-banner + .update-notice {
+  padding-top: 10px;
+}
+
+.update-notice {
   padding: calc(10px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 10px
     calc(16px + env(safe-area-inset-left));
   border-bottom: 1px solid #b9d3f2;
