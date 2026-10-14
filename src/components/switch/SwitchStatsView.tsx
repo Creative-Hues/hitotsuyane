@@ -1,6 +1,13 @@
 // 交代の記録の集計(SPEC.md 17.5):人格ごと・時間帯ごと・きっかけごと
-// 時間帯・きっかけは、人格ごとの回数を色の帯(横に積み重ねた棒)と数で出す
-import { switchAlterLabel, type SwitchAlterCount, type SwitchStats, type SwitchStatsRow } from '../../lib/switchLog';
+// 時間帯は、人格ごとの回数を色の帯(横に積み重ねた棒)と数で出す
+// きっかけは、きっかけごとの回数と「[交代前の人格] → [交代した人格] ○回」を出す
+import {
+  switchAlterLabel,
+  type SwitchAlterCount,
+  type SwitchStats,
+  type SwitchStatsRow,
+  type SwitchTagRow,
+} from '../../lib/switchLog';
 import { countText } from '../../lib/stats';
 import { useTerm } from '../../hooks/useTerm';
 import { AlterNameLabel } from '../common/AlterNameLabel';
@@ -23,13 +30,13 @@ export function SwitchStatsView({ stats }: { stats: SwitchStats }) {
       <div className="stats-card">
         <h3>きっかけごと</h3>
         <p className="settings-note">1つの記録に2つのきっかけがあれば、両方に数えます。</p>
-        <StatsRows rows={stats.byTag} />
+        <TagRows rows={stats.byTag} />
       </div>
     </>
   );
 }
 
-function AlterName({ item }: { item: SwitchAlterCount }) {
+function AlterName({ item }: { item: Pick<SwitchAlterCount, 'alter'> }) {
   const { name, color } = switchAlterLabel(item.alter);
   return (
     <span className="stats-list__alter">
@@ -83,6 +90,34 @@ function StatsRows({ rows }: { rows: SwitchStatsRow[] }) {
               </span>
             ))}
           </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** きっかけの行:きっかけごとの回数と、その中の「誰から誰に」(SPEC.md 17.5) */
+function TagRows({ rows }: { rows: SwitchTagRow[] }) {
+  return (
+    <ul className="switch-rows">
+      {rows.map((row) => (
+        <li key={row.label} className="switch-row">
+          <div className="switch-row__head">
+            <span className="switch-row__label">{row.label}</span>
+            <span>{countText(row.total)}</span>
+          </div>
+          <ul className="switch-pairs">
+            {row.pairs.map((pair) => (
+              <li key={`${pair.from?.id ?? ''}>${pair.to?.id ?? ''}`} className="switch-pairs__row">
+                <span className="stats-list__alter switch-entry__alters">
+                  <AlterName item={{ alter: pair.from }} />
+                  <span aria-label="から">→</span>
+                  <AlterName item={{ alter: pair.to }} />
+                </span>
+                <span>{countText(pair.count)}</span>
+              </li>
+            ))}
+          </ul>
         </li>
       ))}
     </ul>

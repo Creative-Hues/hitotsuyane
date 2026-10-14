@@ -959,6 +959,11 @@ textarea {
   font-weight: bold;
 }
 
+/* 出せる人格がいないときは、押せないことがわかるよう薄くする */
+.alter-switcher__add:disabled {
+  opacity: 0.35;
+}
+
 /* 「+」のシートの「外した人格」の見出し */
 .sheet__subtitle {
   font-size: 1rem;
@@ -1712,6 +1717,91 @@ body {
   margin: 4px 0 0;
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
+}
+
+/* 期限なしの欄の「完了済み」(SPEC.md 6.1)。欄の見出しより小さくする */
+.home-section .collapsible__heading {
+  font-size: 1rem;
+}
+
+/* きっかけごとの「[交代前] → [交代した人格] ○回」(SPEC.md 17.5) */
+.switch-pairs {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 12px;
+}
+
+.switch-pairs__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  font-size: 0.875rem;
+}
+
+/* 交代の記録のカレンダー(SPEC.md 17.7)。7列のマス。スマホの幅でも横にはみ出さない */
+.switch-calendar {
+  margin-bottom: 16px;
+}
+
+.switch-calendar__row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.switch-calendar__weekday {
+  text-align: center;
+  font-size: 0.8125rem;
+}
+
+.switch-calendar__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  min-height: 60px;
+  padding: 2px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font-size: 0.8125rem;
+}
+
+/* 記録のある日(押せる) */
+.switch-calendar__cell--button {
+  border-color: #1f6fd1;
+}
+
+.switch-calendar__cell--empty {
+  border: none;
+}
+
+/* 円を3×3に並べる */
+.switch-calendar__dots {
+  display: grid;
+  grid-template-columns: repeat(3, 10px);
+  gap: 2px;
+}
+
+.switch-calendar__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.switch-calendar__more {
+  width: 10px;
+  height: 10px;
+  font-size: 10px;
+  line-height: 10px;
+  text-align: center;
+  font-weight: bold;
 }
 
 /* 受診用の書き出し(印刷) */

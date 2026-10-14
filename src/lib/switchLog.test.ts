@@ -4,6 +4,7 @@ import {
   buildSwitchStats,
   clampSwitchMonth,
   compareSwitchLogs,
+  countSwitchPairs,
   fillFromAlters,
   fromAlterNotice,
   guessFromAlterId,
@@ -330,5 +331,62 @@ describe('記録するときの交代前の人格の文(SPEC.md 17.1)', () => {
     expect(resolveFromAlter({ fromAlterId: 'H' }, [a, hidden])).toBe(hidden);
     expect(resolveFromAlter({ fromAlterId: 'deleted' }, [a])).toBeNull();
     expect(resolveFromAlter({ fromAlterId: null }, [a])).toBeNull();
+  });
+});
+
+describe('きっかけごとの「誰から誰に」(SPEC.md 17.5)', () => {
+  const alters = [alter('B', 1), alter('A', 0), alter('C', 2, true)];
+  /** 交代前の人格を指定して記録を作る */
+  const pair = (id: string, from: string | null, to: string | null, at: Date, tagIds: string[] = []): SwitchLog => ({
+    ...log(id, to, at, tagIds),
+    fromAlterId: from,
+  });
+
+  it('回数の多い順、同じ回数なら交代前・交代した人格の並び順(「わからない」は最後)', () => {
+    const at = new Date(2026, 9, 2, 21, 0);
+    const logs = [
+      pair('1', 'B', 'A', at),
+      pair('2', null, 'A', at),
+      pair('3', 'A', 'B', at),
+      pair('4', 'A', 'B', at),
+      pair('5', 'A', null, at),
+      pair('6', 'A', 'C', at),
+      // 見つからない人格は「わからない」としてまとめる
+      pair('7', 'gone', 'A', at),
+    ];
+    const simple = countSwitchPairs(logs, alters).map((p) => [p.from?.id ?? null, p.to?.id ?? null, p.count]);
+    expect(simple).toEqual([
+      ['A', 'B', 2],
+      [null, 'A', 2],
+      ['A', 'C', 1],
+      ['A', null, 1],
+      ['B', 'A', 1],
+    ]);
+  });
+
+  it('集計のきっかけごとの行に、そのきっかけの記録の「誰から誰に」が入る', () => {
+    const logs = [
+      pair('1', 'A', 'B', new Date(2026, 9, 2, 21, 0), ['t-sound']),
+      pair('2', 'B', 'A', new Date(2026, 9, 3, 21, 0), ['t-sound', 't-dream']),
+      pair('3', 'B', 'A', new Date(2026, 9, 4, 21, 0)),
+    ];
+    const stats = buildSwitchStats({ logs, month: '2026-10', alters, tags });
+    const simple = stats.byTag.map((row) => [
+      row.label,
+      row.total,
+      row.pairs.map((p) => [p.from?.id ?? null, p.to?.id ?? null, p.count]),
+    ]);
+    expect(simple).toEqual([
+      [
+        '音',
+        2,
+        [
+          ['A', 'B', 1],
+          ['B', 'A', 1],
+        ],
+      ],
+      ['夢', 1, [['B', 'A', 1]]],
+      ['わからない', 1, [['B', 'A', 1]]],
+    ]);
   });
 });

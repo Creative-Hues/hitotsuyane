@@ -1,6 +1,9 @@
 // 交代の記録の画面(SPEC.md 17.4):月ごとの集計・記録の一覧・受診用の書き出し・きっかけの設定の入口
 // 「交代」タブを開くと出る(SPEC.md 5章。タブの一番上の画面なので「‹ 戻る」は出さない)
+// [一覧][カレンダー] で、集計と記録の一覧か、その月のカレンダー(SPEC.md 17.7)かを切り替える
+// カレンダーの日付を押すと、その日の記録だけの一覧を開く
 import { useState } from 'react';
+import { SwitchCalendarView } from '../components/switch/SwitchCalendarView';
 import { SwitchReportDocument } from '../components/switch/SwitchReportDocument';
 import { SwitchStatsView } from '../components/switch/SwitchStatsView';
 import { db } from '../db/db';
@@ -8,7 +11,8 @@ import { useListScroll } from '../hooks/useListScroll';
 import { useLiveQuery } from '../hooks/useLiveQuery';
 import { useNow } from '../hooks/useNow';
 import { usePrintNode } from '../hooks/usePrintNode';
-import { nextLogicalMonth, previousLogicalMonth } from '../lib/period';
+import { nextLogicalMonth, previousLogicalMonth, type LogicalDate } from '../lib/period';
+import { buildSwitchCalendar, switchLogsOnDate } from '../lib/switchCalendar';
 import { statsMonthLabel } from '../lib/stats';
 import {
   buildSwitchStats,
@@ -23,8 +27,20 @@ import { SwitchLogEditScreen } from './SwitchLogEditScreen';
 import { SwitchTagSettingsScreen } from './SwitchTagSettingsScreen';
 import { SwitchLogRow } from '../components/switch/SwitchLogRow';
 
-/** 表示中の画面:一覧 / 記録の編集 / きっかけの設定 */
-type View = { kind: 'list' } | { kind: 'edit'; id: string } | { kind: 'tags' };
+/** 表示中の画面:一覧 / その日の記録の一覧(カレンダーから) / 記録の編集(returnTo は戻る先) / きっかけの設定 */
+type View =
+  | { kind: 'list' }
+  | { kind: 'day'; date: LogicalDate }
+  | { kind: 'edit'; id: string; returnTo: View }
+  | { kind: 'tags' };
+
+/** 一覧(集計と記録の一覧)/ カレンダー */
+type Mode = 'list' | 'calendar';
+
+const MODE_OPTIONS: readonly { key: Mode; label: string }[] = [
+  { key: 'list', label: '一覧' },
+  { key: 'calendar', label: 'カレンダー' },
+];
 
 const EMPTY_TEXT = 'この月の記録はありません';
 
@@ -37,6 +53,8 @@ export function SwitchLogScreen() {
   const [view, setView] = useState<View>({ kind: 'list' });
   // 選んでいる月(null なら今の論理月)。編集画面へ行って戻っても保つ
   const [month, setMonth] = useState<string | null>(null);
+  // アプリを開いたときは一覧。開いている間は、最後に選んだほうを覚える(保存はしない)
+  const [mode, setMode] = useState<Mode>('list');
   const rememberScroll = useListScroll(view.kind === 'list');
 
   const open = (next: View) => {
@@ -60,8 +78,40 @@ export function SwitchLogScreen() {
     const log = logs.find((item) => item.id === view.id);
     // 削除済みなら一覧を出す
     if (log) {
-      return <SwitchLogEditScreen key={log.id} log={log} alters={alters} tags={tags} onBack={backToList} />;
+      return (
+        <SwitchLogEditScreen key={log.id} log={log} alters={alters} tags={tags} onBack={() => setView(view.returnTo)} />
+      );
     }
+  }
+  if (view.kind === 'day') {
+    const dayLogs = switchLogsOnDate(logs, view.date);
+    return (
+      <main className="app">
+        <header className="screen-header">
+          <button type="button" onClick={backToList}>
+            ‹ 戻る
+          </button>
+          <h1>{formatLogicalDateHeading(view.date)}</h1>
+        </header>
+        {dayLogs.length === 0 ? (
+          <p className="empty">この日の記録はありません</p>
+        ) : (
+          <ul className="item-list">
+            {dayLogs.map((log) => (
+              <li key={log.id}>
+                <SwitchLogRow
+                  log={log}
+                  logicalDate={view.date}
+                  alters={alters}
+                  tags={tags}
+                  onOpen={(target) => open({ kind: 'edit', id: target.id, returnTo: view })}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    );
   }
 
   const range = switchMonthRange(logs, now);
@@ -102,8 +152,27 @@ export function SwitchLogScreen() {
         </button>
       </div>
 
+      <div className="tab-switch" role="group" aria-label="一覧とカレンダーの切り替え">
+        {MODE_OPTIONS.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            className={option.key === mode ? 'tab-switch__button tab-switch__button--current' : 'tab-switch__button'}
+            aria-pressed={option.key === mode}
+            onClick={() => setMode(option.key)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       {stats.total === 0 ? (
         <p className="empty">{EMPTY_TEXT}</p>
+      ) : mode === 'calendar' ? (
+        <SwitchCalendarView
+          weeks={buildSwitchCalendar({ logs, month: shownMonth, alters })}
+          onOpenDate={(date) => open({ kind: 'day', date })}
+        />
       ) : (
         <>
           <section className="settings-section">
@@ -123,7 +192,7 @@ export function SwitchLogScreen() {
                         logicalDate={day.logicalDate}
                         alters={alters}
                         tags={tags}
-                        onOpen={(target) => open({ kind: 'edit', id: target.id })}
+                        onOpen={(target) => open({ kind: 'edit', id: target.id, returnTo: { kind: 'list' } })}
                       />
                     </li>
                   ))}

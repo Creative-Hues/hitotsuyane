@@ -1,5 +1,5 @@
 // タスクの追加・編集画面(SPEC.md 6.4)。編集のときは非表示/再表示と削除もここから行う
-// fixedCycle を渡すと、その周期だけのタスクの追加画面になる(ToDo 画面の「+ 追加」=期限なし。SPEC.md 6.1)
+// fixedCycle を渡すと、その周期だけのタスクの追加画面になる(ToDo 画面の「＋ 追加」=期限なし。SPEC.md 6.1)
 import { useState } from 'react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { TaskForm } from '../components/settings/TaskForm';

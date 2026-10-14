@@ -117,6 +117,20 @@ export function clampStatsMonth(month: string | null, now: Date): string {
   return month < oldest ? oldest : month;
 }
 
+/** 論理日の曜日(日曜=0 … 土曜=6)。カレンダーで使う(SPEC.md 17.7) */
+export function weekdayOfLogicalDate(logicalDate: LogicalDate): number {
+  return new Date(toDayNumber(logicalDate) * 86_400_000).getUTCDay();
+}
+
+/** 論理月('YYYY-MM')の、1日から月末までの論理日 */
+export function logicalDatesOfMonth(logicalMonth: string): LogicalDate[] {
+  const dates: LogicalDate[] = [];
+  for (let date = `${logicalMonth}-01`; date.startsWith(logicalMonth); date = addLogicalDays(date, 1)) {
+    dates.push(date);
+  }
+  return dates;
+}
+
 /** 論理日が始まる日時(その日の朝5時。端末のローカル時刻) */
 export function startOfLogicalDate(logicalDate: LogicalDate): Date {
   const { year, month, day } = parseLogicalDate(logicalDate);

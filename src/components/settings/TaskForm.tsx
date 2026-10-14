@@ -1,5 +1,5 @@
 // タスクの追加・編集フォーム
-// fixedCycle を渡すと、周期を選ぶ欄を出さず、その周期で保存する(ToDo 画面の「+ 追加」=期限なし。SPEC.md 6.1)
+// fixedCycle を渡すと、周期を選ぶ欄を出さず、その周期で保存する(ToDo 画面の「＋ 追加」=期限なし。SPEC.md 6.1)
 import { useState, type FormEvent } from 'react';
 import type { TaskInput } from '../../db/taskRepo';
 import { mergeCareAlterIds } from '../../lib/careAlters';

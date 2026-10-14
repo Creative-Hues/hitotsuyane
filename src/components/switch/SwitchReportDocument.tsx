@@ -11,6 +11,7 @@ import {
   tagNamesOf,
   type SwitchStats,
   type SwitchStatsRow,
+  type SwitchTagRow,
 } from '../../lib/switchLog';
 import type { Alter, SwitchLog, SwitchTag } from '../../lib/types';
 import { SWITCH_LOG_NOTICE } from '../../lib/about';
@@ -61,7 +62,7 @@ export function SwitchReportDocument({ month, stats, logs, alters, tags, created
       </section>
 
       <RowsTable title="時間帯ごと" rows={stats.byTime} />
-      <RowsTable title="きっかけごと(1つの記録に2つのきっかけがあれば、両方に数えます)" rows={stats.byTag} />
+      <TagRowsTable title="きっかけごと(1つの記録に2つのきっかけがあれば、両方に数えます)" rows={stats.byTag} />
 
       <section className="print-part">
         <h2>記録の一覧</h2>
@@ -114,6 +115,30 @@ function RowsTable({ title, rows }: { title: string; rows: SwitchStatsRow[] }) {
               <th scope="row">{row.label}</th>
               <td className="switch-report__count">{countText(row.total)}</td>
               <td>{row.counts.map((item) => `${switchAlterLabel(item.alter).name} ${item.count}`).join('、')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+/** きっかけの表:きっかけごとの回数と「人格A → 人格B 2回」(SPEC.md 17.6) */
+function TagRowsTable({ title, rows }: { title: string; rows: SwitchTagRow[] }) {
+  return (
+    <section className="print-part">
+      <h2>{title}</h2>
+      <table className="switch-report__table">
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label}>
+              <th scope="row">{row.label}</th>
+              <td className="switch-report__count">{countText(row.total)}</td>
+              <td>
+                {row.pairs
+                  .map((pair) => `${switchAlterLabel(pair.from).name} → ${switchAlterLabel(pair.to).name} ${countText(pair.count)}`)
+                  .join('、')}
+              </td>
             </tr>
           ))}
         </tbody>

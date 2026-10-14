@@ -226,6 +226,21 @@ export interface SwitchStatsRow {
   counts: SwitchAlterCount[];
 }
 
+/** 「[交代前の人格] → [交代した人格] ○回」の1行(SPEC.md 17.5) */
+export interface SwitchPairCount {
+  /** 交代前の人格。「わからない」(または見つからない人格)は null */
+  from: Alter | null;
+  /** 交代した人格。「わからない」(または見つからない人格)は null */
+  to: Alter | null;
+  count: number;
+}
+
+/** きっかけごとの1行。人格ごとの回数に加えて、誰から誰にの回数を持つ */
+export interface SwitchTagRow extends SwitchStatsRow {
+  /** 回数の多い順。同じ回数なら交代前の人格の並び順、交代した人格の並び順(「わからない」はどちらも最後) */
+  pairs: SwitchPairCount[];
+}
+
 /** 1か月分の集計(SPEC.md 17.5) */
 export interface SwitchStats {
   /** その月の記録の件数 */
@@ -235,14 +250,14 @@ export interface SwitchStats {
   /** 時間帯ごと(0回の時間帯は入れない。時間帯の順) */
   byTime: SwitchStatsRow[];
   /** きっかけごと(0回のきっかけは入れない。きっかけの並び順、「わからない」は最後) */
-  byTag: SwitchStatsRow[];
+  byTag: SwitchTagRow[];
 }
 
 /** 人格のキー(「わからない」・見つからない人格は '') */
 const UNKNOWN_KEY = '';
 
 /** 記録の人格のキー(人格が見つからないときは「わからない」として扱う) */
-function alterKeyOf(log: SwitchLog, alterById: ReadonlyMap<string, Alter>): string {
+function alterKeyOf(log: Pick<SwitchLog, 'alterId'>, alterById: ReadonlyMap<string, Alter>): string {
   return log.alterId !== null && alterById.has(log.alterId) ? log.alterId : UNKNOWN_KEY;
 }
 
@@ -254,6 +269,37 @@ function toSwitchAlterCounts(counts: ReadonlyMap<string, number>, alters: readon
     .map((alter) => ({ alter, count: counts.get(alter.id) ?? 0 }));
   const unknown = counts.get(UNKNOWN_KEY) ?? 0;
   return unknown > 0 ? [...known, { alter: null, count: unknown }] : known;
+}
+
+/** 人格の並び順での位置(「わからない」は最後) */
+function alterRank(alter: Alter | null): number {
+  return alter === null ? Infinity : alter.order;
+}
+
+/**
+ * 記録を「誰から誰に」ごとに数える(SPEC.md 17.5)。0回の組は入れない。
+ * 回数の多い順、同じ回数なら交代前の人格の並び順、それも同じなら交代した人格の並び順(「わからない」は最後)。
+ * 期間で区切らずに使えるので、フェーズ3の受診前のまとめでも使う(期間の記録だけを渡す)
+ * @param alters すべての人格(非表示も含む)
+ */
+export function countSwitchPairs(logs: readonly SwitchLog[], alters: readonly Alter[]): SwitchPairCount[] {
+  const alterById = new Map(alters.map((alter) => [alter.id, alter]));
+  const pairs = new Map<string, SwitchPairCount>();
+  for (const log of logs) {
+    const fromKey = alterKeyOf({ alterId: log.fromAlterId }, alterById);
+    const toKey = alterKeyOf(log, alterById);
+    const key = JSON.stringify([fromKey, toKey]);
+    const existing = pairs.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      pairs.set(key, { from: alterById.get(fromKey) ?? null, to: alterById.get(toKey) ?? null, count: 1 });
+    }
+  }
+  return [...pairs.values()].sort(
+    (a, b) =>
+      b.count - a.count || alterRank(a.from) - alterRank(b.from) || alterRank(a.to) - alterRank(b.to),
+  );
 }
 
 function increment(counts: Map<string, number>, key: string): void {
@@ -284,7 +330,10 @@ export function buildSwitchStats(input: {
   const byAlter = new Map<string, number>();
   const byTime = TIME_BIN_LABELS.map(() => new Map<string, number>());
   const byTag = new Map<string, Map<string, number>>();
-  const tagCounts = (tagKey: string) => {
+  // きっかけごとの記録(誰から誰にを数えるため)
+  const logsByTag = new Map<string, SwitchLog[]>();
+  const tagCounts = (tagKey: string, log: SwitchLog) => {
+    logsByTag.set(tagKey, [...(logsByTag.get(tagKey) ?? []), log]);
     const existing = byTag.get(tagKey);
     if (existing) {
       return existing;
@@ -301,17 +350,19 @@ export function buildSwitchStats(input: {
     // 同じきっかけが2回入っていても1回と数える。見つからないきっかけは数えない
     const tagIds = [...new Set(log.tagIds)].filter((id) => knownTagIds.has(id));
     if (log.tagIds.length === 0) {
-      increment(tagCounts(UNKNOWN_KEY), key);
+      increment(tagCounts(UNKNOWN_KEY, log), key);
     }
     for (const tagId of tagIds) {
-      increment(tagCounts(tagId), key);
+      increment(tagCounts(tagId, log), key);
     }
   }
 
-  const tagRows = [...tags]
-    .sort((a, b) => a.order - b.order)
-    .map((tag) => toRow(tag.name, byTag.get(tag.id) ?? new Map(), alters));
-  tagRows.push(toRow(UNKNOWN_TRIGGER_NAME, byTag.get(UNKNOWN_KEY) ?? new Map(), alters));
+  const toTagRow = (label: string, tagKey: string): SwitchTagRow => ({
+    ...toRow(label, byTag.get(tagKey) ?? new Map(), alters),
+    pairs: countSwitchPairs(logsByTag.get(tagKey) ?? [], alters),
+  });
+  const tagRows = [...tags].sort((a, b) => a.order - b.order).map((tag) => toTagRow(tag.name, tag.id));
+  tagRows.push(toTagRow(UNKNOWN_TRIGGER_NAME, UNKNOWN_KEY));
 
   return {
     total: logs.length,
