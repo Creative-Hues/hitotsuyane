@@ -1,9 +1,10 @@
-// 画面下のタブバー(SPEC.md 5章)。[リスト][治療][交代][人格] の4つ。アイコン+文字で、今いるタブは色で区別する
+// 画面下のタブバー(SPEC.md 5章)。[リスト][治療][交代][掲示板][人格] の5つ。アイコン+文字で、今いるタブは色で区別する
+// 掲示板のタブには、新着のあるスレッドの数をバッジで出す(SPEC.md 22.4)
 // アイコンは外部から読み込まず、SVG をここに直接書く
 import type { ReactNode } from 'react';
 import { useTerm } from '../../hooks/useTerm';
 
-export type TabKey = 'list' | 'care' | 'switch' | 'alters';
+export type TabKey = 'list' | 'care' | 'switch' | 'board' | 'alters';
 
 /** アイコンの共通の枠(線で描く。色は文字色と同じ) */
 function Icon({ children }: { children: ReactNode }) {
@@ -62,6 +63,17 @@ const TABS: readonly { key: TabKey; label: string; icon: ReactNode }[] = [
     ),
   },
   {
+    key: 'board',
+    label: '掲示板',
+    // 吹き出し
+    icon: (
+      <Icon>
+        <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H10l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+        <path d="M8 10h8M8 13h5" />
+      </Icon>
+    ),
+  },
+  {
     key: 'alters',
     label: '人格',
     // 2人の人
@@ -79,9 +91,11 @@ const TABS: readonly { key: TabKey; label: string; icon: ReactNode }[] = [
 interface Props {
   current: TabKey;
   onSelect: (tab: TabKey) => void;
+  /** タブごとのバッジの文字(ないタブは出さない) */
+  badges?: Partial<Record<TabKey, string>>;
 }
 
-export function TabBar({ current, onSelect }: Props) {
+export function TabBar({ current, onSelect, badges = {} }: Props) {
   const { t } = useTerm();
   return (
     <nav className="tab-bar" aria-label="画面の切り替え">
@@ -93,7 +107,14 @@ export function TabBar({ current, onSelect }: Props) {
           aria-current={tab.key === current ? 'page' : undefined}
           onClick={() => onSelect(tab.key)}
         >
-          {tab.icon}
+          <span className="tab-bar__icon-wrap">
+            {tab.icon}
+            {badges[tab.key] && (
+              <span className="tab-bar__badge" aria-label={`新着 ${badges[tab.key]}件`}>
+                {badges[tab.key]}
+              </span>
+            )}
+          </span>
           <span className="tab-bar__label">{t(tab.label)}</span>
         </button>
       ))}

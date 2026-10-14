@@ -536,9 +536,32 @@ body {
   height: 24px;
 }
 
+/* 5つ並ぶので文字は小さめ。長い呼び方で入りきらない分は「…」で切る(下の「呼び方が長いとき」。SPEC.md 5章) */
 .tab-bar__label {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   white-space: nowrap;
+}
+
+/* アイコンの右上に、新着の数のバッジを重ねる(SPEC.md 22.4) */
+.tab-bar__icon-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tab-bar__badge {
+  position: absolute;
+  top: -4px;
+  left: 16px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #d93025;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: bold;
+  line-height: 18px;
+  text-align: center;
 }
 
 /* シート・確認ダイアログは、タブバーより手前に出す */
@@ -2201,4 +2224,169 @@ body {
 .settings-subheading {
   font-size: 1.0625rem;
   margin: 0 0 8px;
+}
+
+/* ---- ブラッシュアップ フェーズ4:掲示板(SPEC.md 22章) ---- */
+
+/* 板の切り替え。板が多いときは折り返す */
+.board-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.board-switcher__button {
+  max-width: 100%;
+  border: 1px solid #1f6fd1;
+  border-radius: 999px;
+  background: transparent;
+  color: #1f6fd1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-switcher__button--selected {
+  background: #1f6fd1;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* 新着のある板の印 */
+.board-switcher__new {
+  margin-right: 4px;
+  color: #d93025;
+}
+
+.board-switcher__button--selected .board-switcher__new {
+  color: #fff;
+}
+
+/* スレッドの一覧の1行。押すとスレッドの画面 */
+.thread-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 4px;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.thread-row__title {
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+.thread-row__new {
+  margin-right: 8px;
+  color: #d93025;
+  font-size: 0.875rem;
+}
+
+.thread-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.8125rem;
+  color: #555;
+}
+
+/* 書き込み1件(スレッドの本文・コメント) */
+.post-card {
+  padding: 12px 0;
+  border-bottom: 1px solid #ccc;
+}
+
+.post-card--thread {
+  border-bottom: 2px solid #ccc;
+}
+
+.post-card__title {
+  font-size: 1.25rem;
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+
+.post-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.8125rem;
+  color: #555;
+}
+
+.post-card__edited {
+  color: #777;
+}
+
+/* 「編集」は右に寄せ、小さめのボタンにする */
+.post-card__edit {
+  margin-left: auto;
+  min-height: 36px;
+  font-size: 0.875rem;
+}
+
+.post-card__body {
+  margin: 8px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.post-comments {
+  margin-top: 16px;
+}
+
+.post-comments > h2 {
+  font-size: 1.1rem;
+  margin: 0 0 4px;
+}
+
+/* リアクションのボタンと、付けた人格の並び */
+.reaction-bar__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reaction-button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #999;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.875rem;
+}
+
+.reaction-button--used {
+  border-color: #1f6fd1;
+  color: #1f6fd1;
+  font-weight: bold;
+}
+
+.reaction-bar__who {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 0.8125rem;
+}
+
+.reaction-bar__who > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.reaction-bar__kind {
+  color: #555;
 }

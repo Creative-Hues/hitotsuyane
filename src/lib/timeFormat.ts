@@ -45,6 +45,11 @@ export function formatLogicalMonthDay(logicalDate: string): string {
   return `${month}/${day}`;
 }
 
+/** 「10/14 21:30」形式(実際の日時。掲示板の書き込み。SPEC.md 22.1) */
+export function formatPostDateTime(iso: string): string {
+  return `${formatMonthDay(iso)} ${formatClockOf(iso)}`;
+}
+
 /** 「2026/9/28 21:30」形式(実際の日時) */
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);

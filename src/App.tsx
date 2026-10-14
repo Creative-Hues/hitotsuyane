@@ -1,4 +1,4 @@
-// 画面の切り替え(SPEC.md 5章):画面下のタブバーで4つのタブ [リスト][治療][交代][人格] を切り替える
+// 画面の切り替え(SPEC.md 5章):画面下のタブバーで5つのタブ [リスト][治療][交代][掲示板][人格] を切り替える
 // リストタブは [ToDo][バケット]、治療タブは [服薬][受診メモ] を、タブの上部の切り替えボタンで切り替える
 // タブ・切り替えで戻ったとき、前に開いていた画面・スクロール位置・入力中の内容がそのまま残るよう、
 // すべての画面は作ったままにして、今の画面以外は隠しておく
@@ -16,6 +16,8 @@ import { db } from './db/db';
 import { IS_TEST_SITE } from './lib/appTarget';
 import { IntroScreen } from './screens/IntroScreen';
 import { AlterInfoScreen } from './screens/AlterInfoScreen';
+import { BoardScreen } from './screens/BoardScreen';
+import { badgeText, countNewThreads } from './lib/board';
 import { BucketScreen } from './screens/BucketScreen';
 import { ClinicNoteScreen } from './screens/ClinicNoteScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -71,6 +73,15 @@ function App() {
   const [introClosed, setIntroClosed] = useState(false);
   // 「人格を登録する」を押した回数(押すたびに、人格タブで人格の追加の画面を開く)
   const [addAlterRequest, setAddAlterRequest] = useState(0);
+  // 掲示板のタブのバッジ:新着のあるスレッドの数(SPEC.md 22.4)
+  const newThreadCount = useLiveQuery(async () =>
+    countNewThreads({
+      threads: await db.boardThreads.toArray(),
+      comments: await db.boardComments.toArray(),
+      seens: await db.boardSeen.toArray(),
+    }),
+  );
+  const boardBadge = badgeText(newThreadCount ?? 0);
 
   // 今見ている画面の名前(スクロール位置を覚える単位)
   const screenKey = tab === 'list' ? `list:${listView}` : tab === 'care' ? `care:${careView}` : tab;
@@ -164,6 +175,7 @@ function App() {
       </>
     ),
     switch: <SwitchLogScreen />,
+    board: <BoardScreen />,
     alters: <AlterInfoScreen backupRequest={backupRequest} addAlterRequest={addAlterRequest} />,
   };
 
@@ -206,7 +218,7 @@ function App() {
           記録しました
         </p>
       )}
-      <TabBar current={tab} onSelect={handleSelectTab} />
+      <TabBar current={tab} onSelect={handleSelectTab} badges={boardBadge === null ? {} : { board: boardBadge }} />
       {alterCount === 0 && !introClosed && (
         <IntroScreen
           onAddAlter={() => {
