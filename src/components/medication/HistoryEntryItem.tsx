@@ -6,6 +6,7 @@ import { timingNameOf } from '../../lib/medicationTimings';
 import type { LogicalDate } from '../../lib/period';
 import { formatClockInLogicalDay } from '../../lib/timeFormat';
 import type { Alter, Medication, MedicationIntake, MedicationTiming } from '../../lib/types';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 /** 薬が見つからないとき(ふつうは起きない。記録のある薬は削除できないため)の表示名 */
 export const UNKNOWN_MEDICATION_NAME = '(不明な薬)';
@@ -34,8 +35,8 @@ export function HistoryEntryItem({ entry, logicalDate, medicationById, timingByI
       <span className="task-item__body">
         <span className="history-entry__head">
           <span className="item-name">{entry.kind === 'scheduled' ? timingNameOf(entry.timing, timingById) : '頓服'}</span>
-          <span className="task-item__done-by" style={alter.color ? { color: alter.color } : undefined}>
-            {alter.name}
+          <span className="task-item__done-by">
+            <AlterNameLabel name={alter.name} color={alter.color} />
           </span>
         </span>
         {intakes.map((intake) => (

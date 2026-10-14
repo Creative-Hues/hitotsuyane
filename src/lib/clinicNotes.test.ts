@@ -189,6 +189,17 @@ describe('診察用の表示(SPEC.md 8.3)', () => {
   it('まだ話していないメモがなければ空', () => {
     expect(buildClinicView([note('d', { discussedAt: iso(9, 1) })], [], [alterA], categories)).toEqual([]);
   });
+
+  it('名前ラベル用に、人格とコメントを書いた人格の色を持つ(「わからない」は null)', () => {
+    const groups = buildClinicView(
+      [note('n1'), note('n2', { alterId: null })],
+      [comment('c1', 'n1', { alterId: 'b' }), comment('c2', 'n1', { alterId: null })],
+      [alterA, alterB],
+      categories,
+    );
+    expect(groups.map((group) => group.color)).toEqual(['#4a90d9', null]);
+    expect(groups[0].categories[0].notes[0].comments.map((c) => c.authorColor)).toEqual(['#4a90d9', null]);
+  });
 });
 
 describe('文字としてコピー(SPEC.md 8.3)', () => {

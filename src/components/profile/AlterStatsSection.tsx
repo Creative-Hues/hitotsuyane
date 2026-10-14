@@ -14,6 +14,7 @@ import {
   type AlterCount,
 } from '../../lib/stats';
 import { useTerm } from '../../hooks/useTerm';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 interface Props {
   alterId: string;
@@ -113,15 +114,14 @@ function StatsBody({ stats }: { stats: ReturnType<typeof buildAlterStats> }) {
   );
 }
 
-/** 人格ごとの回数(色つきの名前。非表示の人格も同じ見た目で出す) */
+/** 人格ごとの回数(名前ラベル。非表示の人格も同じ見た目で出す) */
 function AlterCountList({ counts }: { counts: AlterCount[] }) {
   return (
     <dl className="stats-list">
       {counts.map(({ alter, count }) => (
         <div key={alter.id} className="stats-list__row">
           <dt className="stats-list__alter">
-            <span className="color-dot" style={{ backgroundColor: alter.color }} />
-            <span className="stats-list__name">{alter.name}</span>
+            <AlterNameLabel name={alter.name} color={alter.color} />
           </dt>
           <dd>{countText(count)}</dd>
         </div>

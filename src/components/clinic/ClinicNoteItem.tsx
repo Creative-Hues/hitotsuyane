@@ -4,6 +4,7 @@ import { resolveRecordAlter } from '../../lib/completionLabel';
 import { UNKNOWN_CATEGORY_NAME } from '../../lib/clinicNotes';
 import { formatClockOf, formatMonthDay } from '../../lib/timeFormat';
 import type { Alter, ClinicNote, ClinicNoteCategory } from '../../lib/types';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 interface Props {
   note: ClinicNote;
@@ -32,9 +33,7 @@ export function ClinicNoteItem({ note, alterById, categoryById, onToggleDiscusse
       </label>
       <button type="button" className="note-item__body" onClick={() => onOpen(note)}>
         <span className="note-item__meta">
-          <span className="item-name" style={author.color ? { color: author.color } : undefined}>
-            {author.name}
-          </span>
+          <AlterNameLabel name={author.name} color={author.color} />
           <span>{categoryName}</span>
           {/* 書いた日時(実際の日時) */}
           <span>

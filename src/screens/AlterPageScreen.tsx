@@ -4,6 +4,7 @@ import { AlterStatsSection } from '../components/profile/AlterStatsSection';
 import { ProfileSectionList } from '../components/profile/ProfileSectionList';
 import { basicInfoItems, categoryLabel } from '../lib/alterInfo';
 import type { Alter, AlterCategory, ProfileSection } from '../lib/types';
+import { AlterNameLabel } from '../components/common/AlterNameLabel';
 
 interface Props {
   alter: Alter;
@@ -49,8 +50,9 @@ export function AlterPageScreen({
       </header>
 
       <button type="button" className="info-card alter-card" onClick={onEditAlter} aria-label={`「${alter.name}」を編集`}>
-        <span className="color-dot" style={{ backgroundColor: alter.color }} />
-        <span className="alter-card__name">{alter.name}</span>
+        <span className="alter-card__name">
+          <AlterNameLabel name={alter.name} color={alter.color} size="large" />
+        </span>
         <span className="alter-card__category">{categoryLabel(alter, categories)}</span>
         <span className="info-card__chevron" aria-hidden="true">
           ›

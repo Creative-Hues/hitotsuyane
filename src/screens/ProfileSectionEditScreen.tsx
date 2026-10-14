@@ -7,6 +7,7 @@ import { addProfileSection, deleteProfileSection, updateProfileSection } from '.
 import { validateProfileSectionForm } from '../lib/alterInfo';
 import { showSaveError } from '../lib/showError';
 import type { Alter, ProfileSection } from '../lib/types';
+import { AlterNameLabel } from '../components/common/AlterNameLabel';
 
 interface Props {
   /** 誰のページの見出しか(null なら「全体のこと」) */
@@ -63,7 +64,7 @@ export function ProfileSectionEditScreen({ owner, section, onBack }: Props) {
       <p className="author-heading">
         {owner ? (
           <>
-            <span style={{ color: owner.color }}>{owner.name}</span>のページ
+            <AlterNameLabel name={owner.name} color={owner.color} />のページ
           </>
         ) : (
           '全体のこと'

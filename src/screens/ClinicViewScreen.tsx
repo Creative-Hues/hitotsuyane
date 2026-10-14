@@ -6,6 +6,7 @@ import { db } from '../db/db';
 import { useLiveQuery } from '../hooks/useLiveQuery';
 import { useNow } from '../hooks/useNow';
 import { buildClinicView, buildClinicViewText, clinicViewTitle } from '../lib/clinicNotes';
+import { AlterNameLabel } from '../components/common/AlterNameLabel';
 
 /** コピーの結果の表示 */
 type CopyResult = null | 'copied' | 'failed';
@@ -66,7 +67,10 @@ export function ClinicViewScreen({ onBack }: Props) {
         {groups.length === 0 && <p className="empty">まだ話していないメモはありません</p>}
         {groups.map((group) => (
           <section key={group.alterId ?? 'unknown'} className="clinic-view__group">
-            <h3>■ {group.name}</h3>
+            {/* 人格の名前は、その人格の色の名前ラベルにする(SPEC.md 5章・8.3) */}
+            <h3>
+              <AlterNameLabel name={group.name} color={group.color} size="large" />
+            </h3>
             {group.categories.map((category) => (
               <div key={category.categoryId}>
                 <h4>【{category.name}】</h4>
@@ -76,9 +80,9 @@ export function ClinicViewScreen({ onBack }: Props) {
                       <span className="clinic-view__text">{note.body}</span>
                       {noteComments.length > 0 && (
                         <ul className="clinic-view__comments">
-                          {noteComments.map(({ comment, authorName }) => (
+                          {noteComments.map(({ comment, authorName, authorColor }) => (
                             <li key={comment.id} className="clinic-view__text">
-                              └ {authorName}:{comment.body}
+                              └ <AlterNameLabel name={authorName} color={authorColor} />:{comment.body}
                             </li>
                           ))}
                         </ul>

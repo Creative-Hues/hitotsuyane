@@ -5,6 +5,7 @@ import { db } from '../db/db';
 import { updateAlterBasicInfo } from '../db/alterRepo';
 import { showSaveError } from '../lib/showError';
 import type { Alter } from '../lib/types';
+import { AlterNameLabel } from '../components/common/AlterNameLabel';
 
 interface Props {
   alter: Alter;
@@ -42,7 +43,7 @@ export function AlterBasicInfoEditScreen({ alter, onBack }: Props) {
         <h1>基本情報を編集</h1>
       </header>
       <p className="author-heading">
-        <span style={{ color: alter.color }}>{alter.name}</span>のページ
+        <AlterNameLabel name={alter.name} color={alter.color} />のページ
       </p>
       <form className="edit-form" onSubmit={(event) => void handleSubmit(event)}>
         <label className="field">

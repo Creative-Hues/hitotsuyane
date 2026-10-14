@@ -140,6 +140,8 @@ export function validateClinicNoteCommentForm(values: {
 export interface ClinicViewComment {
   comment: ClinicNoteComment;
   authorName: string;
+  /** 書いた人格の色(名前ラベル用)。「わからない」は null */
+  authorColor: string | null;
 }
 
 /** 診察用の表示の1つの人格の見出しの中身 */
@@ -147,6 +149,8 @@ export interface ClinicViewGroup {
   /** 人格のID。「わからない」(人格が見つからないときも)は null */
   alterId: string | null;
   name: string;
+  /** 人格の色(名前ラベル用)。「わからない」は null */
+  color: string | null;
   /** 分類ごと(分類の並び順) */
   categories: {
     categoryId: string;
@@ -200,10 +204,10 @@ export function buildClinicView(
           name,
           notes: categoryNotes.map((note) => ({
             note,
-            comments: (commentsByNote.get(note.id) ?? []).map((comment) => ({
-              comment,
-              authorName: resolveRecordAlter(comment, alterById).name,
-            })),
+            comments: (commentsByNote.get(note.id) ?? []).map((comment) => {
+              const author = resolveRecordAlter(comment, alterById);
+              return { comment, authorName: author.name, authorColor: author.color };
+            }),
           })),
         },
       ];
@@ -212,6 +216,7 @@ export function buildClinicView(
       {
         alterId: alterKey,
         name: alterKey === null ? UNKNOWN_ALTER_NAME : (alterById.get(alterKey)?.name ?? UNKNOWN_ALTER_NAME),
+        color: alterKey === null ? null : (alterById.get(alterKey)?.color ?? null),
         categories: categoryGroups,
       },
     ];

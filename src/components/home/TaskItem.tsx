@@ -6,6 +6,7 @@ import type { HomeItem, SectionKey } from '../../lib/home';
 import { toPreviousPeriodLabel } from '../../lib/previousPeriod';
 import type { Alter } from '../../lib/types';
 import { PreviousPeriodLine } from '../common/PreviousPeriodLine';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 interface Props {
   item: HomeItem;
@@ -33,15 +34,13 @@ export function TaskItem({ item, section, alters, alterById, onTap }: Props) {
         {careAlters.length > 0 && (
           <span className="alter-labels">
             {careAlters.map((alter) => (
-              <span key={alter.id} className="alter-label" style={{ backgroundColor: alter.color }}>
-                {alter.name}
-              </span>
+              <AlterNameLabel key={alter.id} name={alter.name} color={alter.color} />
             ))}
           </span>
         )}
         {done && label && (
           <span className="task-item__done-by">
-            <span style={label.color ? { color: label.color } : undefined}>{label.name}</span>・{label.time}
+            <AlterNameLabel name={label.name} color={label.color} />・{label.time}
           </span>
         )}
         {previous && <PreviousPeriodLine label={previous} />}

@@ -3,6 +3,7 @@
 import { switchAlterLabel, type SwitchAlterCount, type SwitchStats, type SwitchStatsRow } from '../../lib/switchLog';
 import { countText } from '../../lib/stats';
 import { useTerm } from '../../hooks/useTerm';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 /** 「わからない」の帯の色(どの人格の色とも区別しやすい灰色) */
 export const UNKNOWN_SEGMENT_COLOR = '#9a9a9a';
@@ -32,8 +33,7 @@ function AlterName({ item }: { item: SwitchAlterCount }) {
   const { name, color } = switchAlterLabel(item.alter);
   return (
     <span className="stats-list__alter">
-      <span className="color-dot" style={{ backgroundColor: color ?? UNKNOWN_SEGMENT_COLOR }} />
-      <span className="stats-list__name">{name}</span>
+      <AlterNameLabel name={name} color={color} />
     </span>
   );
 }
@@ -77,7 +77,11 @@ function StatsRows({ rows }: { rows: SwitchStatsRow[] }) {
             ))}
           </div>
           <p className="switch-row__detail">
-            {row.counts.map((item) => `${switchAlterLabel(item.alter).name} ${item.count}`).join('・')}
+            {row.counts.map((item) => (
+              <span key={item.alter?.id ?? 'unknown'} className="switch-row__count">
+                <AlterName item={item} /> {item.count}
+              </span>
+            ))}
           </p>
         </li>
       ))}

@@ -4,6 +4,7 @@
 // selected を渡すと、チェックボックス付きの「選択」の行になる(タップで選択を切り替える。SPEC.md 9.3)
 import { formatMonthDay } from '../../lib/timeFormat';
 import type { Alter, BucketItem } from '../../lib/types';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 interface Props {
   item: BucketItem;
@@ -28,9 +29,7 @@ export function BucketItemRow({ item, alterById, onOpen, onAchieve, selected }: 
             const helper = alterById.get(id);
             return (
               helper && (
-                <span key={id} className="alter-label" style={{ backgroundColor: helper.color }}>
-                  {helper.name}
-                </span>
+                <AlterNameLabel key={id} name={helper.name} color={helper.color} />
               )
             );
           })}

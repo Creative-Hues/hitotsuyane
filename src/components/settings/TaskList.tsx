@@ -7,6 +7,7 @@ import { sortForSettings } from '../../lib/ordering';
 import type { Alter, Task } from '../../lib/types';
 import { SortableList } from '../common/SortableList';
 import { ItemRow } from './ItemRow';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 interface Props {
   tasks: Task[];
@@ -35,9 +36,7 @@ export function TaskList({ tasks, alters, onAdd, onOpen, selectedIds, onToggle }
             const alter = alterById.get(id);
             return (
               alter && (
-                <span key={id} className="alter-label" style={{ backgroundColor: alter.color }}>
-                  {alter.name}
-                </span>
+                <AlterNameLabel key={id} name={alter.name} color={alter.color} />
               )
             );
           })}

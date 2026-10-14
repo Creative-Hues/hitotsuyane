@@ -222,11 +222,52 @@ input[type='color'] {
   gap: 4px;
 }
 
+/* 人格の名前ラベル(SPEC.md 5章)。背景・文字の色は AlterNameLabel が人格の色から決める。
+   長い名前は1行で「…」に省略する */
 .alter-label {
+  display: inline-block;
+  max-width: 100%;
   padding: 2px 8px;
   border-radius: 999px;
   color: #fff;
   font-size: 0.75rem;
+  font-weight: normal;
+  line-height: 1.4;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 一覧の行・見出しの中のラベルは、まわりの文字に合わせて少し大きくする */
+.item-row__name .alter-label,
+.author-heading .alter-label,
+.note-item__meta .alter-label,
+.comment-item__meta .alter-label,
+.stats-list .alter-label,
+.task-item__done-by .alter-label,
+.task-item__previous .alter-label {
+  font-size: 0.875rem;
+}
+
+.alter-label--large {
+  padding: 4px 12px;
+  font-size: 1.125rem;
+  font-weight: bold;
+}
+
+/* 時間帯・きっかけの行の「人格A 2」。ラベルと数を同じ行に並べる */
+.switch-row__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 10px 4px 0;
+  white-space: nowrap;
+}
+
+/* 診察用の表示のコメントのラベルは、大きめの本文に合わせる */
+.clinic-view__comments .alter-label {
+  font-size: 0.875em;
 }
 
 .hidden-heading {

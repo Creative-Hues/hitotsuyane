@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 
 interface Props {
   name: string;
+  /** 名前の代わりに出すもの(人格の名前ラベル)。ないときは name を文字で出す */
+  nameLabel?: ReactNode;
   hidden: boolean;
   /** 名前の左に出すもの(人格の色など) */
   leading?: ReactNode;
@@ -15,14 +17,14 @@ interface Props {
   onOpen: () => void;
 }
 
-export function ItemRow({ name, hidden, leading, sub, selected, onOpen }: Props) {
+export function ItemRow({ name, nameLabel, hidden, leading, sub, selected, onOpen }: Props) {
   const className = hidden ? 'item-row item-row--hidden' : 'item-row';
   const content = (
     <>
       <span className="item-row__main">
         {leading}
         {/* 長い名前は1行で「…」に省略し、行の形を崩さない */}
-        <span className="item-name item-row__name">{name}</span>
+        <span className="item-name item-row__name">{nameLabel ?? name}</span>
       </span>
       {sub && <span className="item-row__sub">{sub}</span>}
     </>

@@ -8,6 +8,7 @@ import type { Alter, AlterCategory } from '../../lib/types';
 import { SortableList } from '../common/SortableList';
 import { ItemRow } from './ItemRow';
 import { useTerm } from '../../hooks/useTerm';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 interface Props {
   alters: Alter[];
@@ -24,7 +25,7 @@ export function AlterList({ alters, categories, onAdd, onOpen }: Props) {
     <ItemRow
       name={alter.name}
       hidden={alter.hidden}
-      leading={<span className="color-dot" style={{ backgroundColor: alter.color }} />}
+      nameLabel={<AlterNameLabel name={alter.name} color={alter.color} />}
       onOpen={() => onOpen(alter)}
     />
   );

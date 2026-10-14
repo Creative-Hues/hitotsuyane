@@ -7,6 +7,7 @@ import { formatClockOf } from '../../lib/timeFormat';
 import type { Alter } from '../../lib/types';
 import { PreviousPeriodLine } from '../common/PreviousPeriodLine';
 import { StockLine } from './StockLine';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 interface Props {
   section: TimingSection;
@@ -43,7 +44,7 @@ export function TimingSectionItem({ section, alterById, onTap }: Props) {
         {/* 完了表示「人格A・21:30」 */}
         {latest && doneBy && (
           <span className="task-item__done-by">
-            <span style={doneBy.color ? { color: doneBy.color } : undefined}>{doneBy.name}</span>・
+            <AlterNameLabel name={doneBy.name} color={doneBy.color} />・
             {formatClockOf(latest.takenAt)}
           </span>
         )}

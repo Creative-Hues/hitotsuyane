@@ -3,6 +3,7 @@
 import { resolveRecordAlter } from '../../lib/completionLabel';
 import { formatClockOf, formatMonthDay } from '../../lib/timeFormat';
 import type { Alter, ClinicNoteComment } from '../../lib/types';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 interface Props {
   /** そのメモのコメント(古い順に並べたもの) */
@@ -20,9 +21,7 @@ export function CommentList({ comments, alterById, onOpen, onAdd }: Props) {
         return (
           <button key={comment.id} type="button" className="comment-item" onClick={() => onOpen(comment)}>
             <span className="comment-item__meta">
-              <span className="item-name" style={author.color ? { color: author.color } : undefined}>
-                {author.name}
-              </span>
+              <AlterNameLabel name={author.name} color={author.color} />
               <span>
                 {formatMonthDay(comment.createdAt)} {formatClockOf(comment.createdAt)}
               </span>

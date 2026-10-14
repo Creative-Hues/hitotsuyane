@@ -32,7 +32,7 @@ export function QuickTableScreen({ rows, onBack, onPrint, printPreview }: Props)
       ) : (
         // 画面の横幅に入らないときは、表だけを横にスクロールする
         <div className="quick-table-scroll">
-          <QuickTable rows={rows} />
+          <QuickTable rows={rows} nameLabels />
         </div>
       )}
     </main>

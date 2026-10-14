@@ -4,6 +4,7 @@
 import { resolveRecordAlter } from '../../lib/completionLabel';
 import { UNKNOWN_CATEGORY_NAME } from '../../lib/clinicNotes';
 import type { Alter, ClinicNote, ClinicNoteCategory } from '../../lib/types';
+import { AlterNameLabel } from '../common/AlterNameLabel';
 
 interface Props {
   note: ClinicNote;
@@ -16,9 +17,7 @@ export function NotePreview({ note, alterById, categoryById }: Props) {
   return (
     <div className="note-preview">
       <span className="note-item__meta">
-        <span className="item-name" style={author.color ? { color: author.color } : undefined}>
-          {author.name}
-        </span>
+        <AlterNameLabel name={author.name} color={author.color} />
         <span>{categoryById.get(note.categoryId)?.name ?? UNKNOWN_CATEGORY_NAME}</span>
       </span>
       {/* 内容は全文。改行もそのまま出す */}

@@ -2,7 +2,7 @@
 // 「交代」タブを開くと出る(SPEC.md 5章。タブの一番上の画面なので「‹ 戻る」は出さない)
 import { useState } from 'react';
 import { SwitchReportDocument } from '../components/switch/SwitchReportDocument';
-import { SwitchStatsView, UNKNOWN_SEGMENT_COLOR } from '../components/switch/SwitchStatsView';
+import { SwitchStatsView } from '../components/switch/SwitchStatsView';
 import { db } from '../db/db';
 import { useListScroll } from '../hooks/useListScroll';
 import { useLiveQuery } from '../hooks/useLiveQuery';
@@ -25,6 +25,7 @@ import { formatClockInLogicalDay, formatLogicalDateHeading } from '../lib/timeFo
 import { SWITCH_LOG_NOTICE } from '../lib/about';
 import { SwitchLogEditScreen } from './SwitchLogEditScreen';
 import { SwitchTagSettingsScreen } from './SwitchTagSettingsScreen';
+import { AlterNameLabel } from '../components/common/AlterNameLabel';
 
 /** 表示中の画面:一覧 / 記録の編集 / きっかけの設定 */
 type View = { kind: 'list' } | { kind: 'edit'; id: string } | { kind: 'tags' };
@@ -129,8 +130,7 @@ export function SwitchLogScreen() {
                           </span>
                           <span className="switch-entry__body">
                             <span className="stats-list__alter">
-                              <span className="color-dot" style={{ backgroundColor: color ?? UNKNOWN_SEGMENT_COLOR }} />
-                              <span className="item-name">{name}</span>
+                              <AlterNameLabel name={name} color={color} />
                             </span>
                             <span className="switch-entry__sub">
                               きっかけ:{tagNamesOf(log, tags).join('、')}
