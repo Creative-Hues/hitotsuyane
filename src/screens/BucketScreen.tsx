@@ -1,8 +1,8 @@
-// バケットタブ(SPEC.md 9章):人格ごとの「いつかやりたいこと」のリストと、入力・編集画面
+// バケット(SPEC.md 9章):人格ごとの「いつかやりたいこと」のリストと、入力・編集画面。リストタブの中で ToDo と切り替える(5章)
 // 画面上部で人格を切り替える。「まだ」を上、「叶ったこと」を下に分け、どちらも ≡ で並び替える
 // 叶ったことにするときは、本人確認 → 協力者を選ぶ画面 → 保存(SPEC.md 9.2)
 // 「選択」で複数の項目を選び、本人確認のあとまとめて削除する(SPEC.md 9.3)
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AlterSwitcher } from '../components/bucket/AlterSwitcher';
 import { BucketItemRow } from '../components/bucket/BucketItemRow';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
@@ -33,7 +33,12 @@ type ItemView = { kind: 'item'; ownerId: string; id: string | null };
  */
 type View = { kind: 'list' } | ItemView | { kind: 'helpers'; ownerId: string; id: string; returnTo: View };
 
-export function BucketScreen() {
+interface Props {
+  /** タブの見出しと、タブの中の切り替えボタン(SPEC.md 5章)。一覧のときだけ出す */
+  tabHeader: ReactNode;
+}
+
+export function BucketScreen({ tabHeader }: Props) {
   const { t } = useTerm();
   const alters = useLiveQuery(() => db.alters.toArray());
   const items = useLiveQuery(() => db.bucketItems.toArray());
@@ -58,6 +63,7 @@ export function BucketScreen() {
   if (!alters || !items) {
     return (
       <main className="app">
+        {tabHeader}
         <p>読み込み中…</p>
       </main>
     );
@@ -110,10 +116,8 @@ export function BucketScreen() {
   if (!owner) {
     return (
       <main className="app">
-        <header className="screen-header">
-          <h1>バケット</h1>
-        </header>
-        <p className="empty">{t('人格がまだ登録されていません。人格情報タブで追加できます')}</p>
+        {tabHeader}
+        <p className="empty">{t('人格がまだ登録されていません。「人格」タブで追加できます')}</p>
       </main>
     );
   }
@@ -191,8 +195,8 @@ export function BucketScreen() {
 
   return (
     <main className="app">
-      <header className="screen-header">
-        <h1>バケット</h1>
+      {tabHeader}
+      <div className="screen-actions">
         {selecting ? (
           <button type="button" onClick={() => setCheckedIds(null)}>
             キャンセル
@@ -206,7 +210,7 @@ export function BucketScreen() {
             選択
           </button>
         )}
-      </header>
+      </div>
       {selecting && (
         // 選択中の操作。一覧が長くても押せるよう、上に貼り付けて表示する
         <div className="selection-bar">

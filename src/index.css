@@ -1837,3 +1837,48 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---- ブラッシュアップ フェーズ1:タブの見出しと、タブの中の切り替え(SPEC.md 5章) ---- */
+
+/* タブの中の画面の切り替えボタン(リスト:ToDo/バケット、治療:服薬/受診メモ) */
+.tab-switch {
+  display: flex;
+  margin-bottom: 12px;
+  border: 1px solid #1f6fd1;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tab-switch__button {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #1f6fd1;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-switch__button + .tab-switch__button {
+  border-left: 1px solid #1f6fd1;
+}
+
+.tab-switch__button--current {
+  background: #1f6fd1;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* 各画面の操作ボタンの行(以前は見出しの行の右に置いていたもの) */
+.screen-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}

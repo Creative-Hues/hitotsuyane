@@ -1,5 +1,5 @@
 // 交代の記録の画面(SPEC.md 17.4):月ごとの集計・記録の一覧・受診用の書き出し・きっかけの設定の入口
-// 人格情報タブの一覧画面の「交代の記録」から開く
+// 「交代」タブを開くと出る(SPEC.md 5章。タブの一番上の画面なので「‹ 戻る」は出さない)
 import { useState } from 'react';
 import { SwitchReportDocument } from '../components/switch/SwitchReportDocument';
 import { SwitchStatsView, UNKNOWN_SEGMENT_COLOR } from '../components/switch/SwitchStatsView';
@@ -31,11 +31,7 @@ type View = { kind: 'list' } | { kind: 'edit'; id: string } | { kind: 'tags' };
 
 const EMPTY_TEXT = 'この月の記録はありません';
 
-interface Props {
-  onBack: () => void;
-}
-
-export function SwitchLogScreen({ onBack }: Props) {
+export function SwitchLogScreen() {
   const alters = useLiveQuery(() => db.alters.toArray());
   const tags = useLiveQuery(() => db.switchTags.toArray());
   const logs = useLiveQuery(() => db.switchLogs.toArray());
@@ -79,9 +75,6 @@ export function SwitchLogScreen({ onBack }: Props) {
   return (
     <main className="app">
       <header className="screen-header">
-        <button type="button" onClick={onBack}>
-          ‹ 戻る
-        </button>
         <h1>交代の記録</h1>
         <button
           type="button"

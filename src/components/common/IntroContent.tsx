@@ -46,7 +46,7 @@ export function IntroContent() {
       )}
       <section className="settings-section about">
         <h2>最初にやること</h2>
-        <p>{t('「人格情報」タブの「＋ 人格を追加」で、人格を登録してください。')}</p>
+        <p>{t('「人格」タブの「＋ 人格を追加」で、人格を登録してください。')}</p>
       </section>
     </>
   );

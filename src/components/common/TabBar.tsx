@@ -1,9 +1,9 @@
-// 画面下のタブバー(SPEC.md 5章)。アイコン+文字で、今いるタブは色で区別する
+// 画面下のタブバー(SPEC.md 5章)。[リスト][治療][交代][人格] の4つ。アイコン+文字で、今いるタブは色で区別する
 // アイコンは外部から読み込まず、SVG をここに直接書く
 import type { ReactNode } from 'react';
 import { useTerm } from '../../hooks/useTerm';
 
-export type TabKey = 'todo' | 'medication' | 'clinic' | 'bucket' | 'alters';
+export type TabKey = 'list' | 'care' | 'switch' | 'alters';
 
 /** アイコンの共通の枠(線で描く。色は文字色と同じ) */
 function Icon({ children }: { children: ReactNode }) {
@@ -26,11 +26,11 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-/** タブの並び(左から) */
+/** タブの並び(左から)。「人格」は呼び方(SPEC.md 14章③)に置き換える */
 const TABS: readonly { key: TabKey; label: string; icon: ReactNode }[] = [
   {
-    key: 'todo',
-    label: 'ToDo',
+    key: 'list',
+    label: 'リスト',
     // チェック付きの四角
     icon: (
       <Icon>
@@ -40,8 +40,8 @@ const TABS: readonly { key: TabKey; label: string; icon: ReactNode }[] = [
     ),
   },
   {
-    key: 'medication',
-    label: '服薬',
+    key: 'care',
+    label: '治療',
     // カプセル
     icon: (
       <Icon>
@@ -51,29 +51,19 @@ const TABS: readonly { key: TabKey; label: string; icon: ReactNode }[] = [
     ),
   },
   {
-    key: 'clinic',
-    label: '受診メモ',
-    // クリップボード
+    key: 'switch',
+    label: '交代',
+    // 向かい合う2つの矢印(入れ替わり)
     icon: (
       <Icon>
-        <rect x="5" y="4" width="14" height="17" rx="2" />
-        <path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3" />
-      </Icon>
-    ),
-  },
-  {
-    key: 'bucket',
-    label: 'バケット',
-    // 星
-    icon: (
-      <Icon>
-        <path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z" />
+        <path d="M4 8h15M15 4l4 4-4 4" />
+        <path d="M20 16H5M9 12l-4 4 4 4" />
       </Icon>
     ),
   },
   {
     key: 'alters',
-    label: '人格情報',
+    label: '人格',
     // 2人の人
     icon: (
       <Icon>

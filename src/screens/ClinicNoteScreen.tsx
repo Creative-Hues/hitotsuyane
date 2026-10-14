@@ -1,8 +1,8 @@
-// 受診メモタブ(SPEC.md 8章):メモの一覧と、入力・編集画面
+// 受診メモ(SPEC.md 8章):メモの一覧と、入力・編集画面。治療タブの中で、服薬と切り替える(5章)
 // 「まだ話していないもの」を上、「話したもの」を下に分ける(8.2)
 // 各メモの下にコメント(8.4)を古い順に並べる
-// 見出しの行に「分類の設定」(8.1)。見出しの下に、横いっぱいの大きな「診察用の表示」ボタン(8.3)
-import { useState } from 'react';
+// 見出しの下に「分類の設定」(8.1)と、横いっぱいの大きな「診察用の表示」ボタン(8.3)
+import { useState, type ReactNode } from 'react';
 import { ClinicNoteItem } from '../components/clinic/ClinicNoteItem';
 import { CommentList } from '../components/clinic/CommentList';
 import { db } from '../db/db';
@@ -25,7 +25,12 @@ type View =
   | { kind: 'note'; id: string | null }
   | { kind: 'comment'; noteId: string; id: string | null };
 
-export function ClinicNoteScreen() {
+interface Props {
+  /** タブの見出しと、タブの中の切り替えボタン(SPEC.md 5章)。一覧のときだけ出す */
+  tabHeader: ReactNode;
+}
+
+export function ClinicNoteScreen({ tabHeader }: Props) {
   const alters = useLiveQuery(() => db.alters.toArray());
   const categories = useLiveQuery(() => db.clinicNoteCategories.toArray());
   const notes = useLiveQuery(() => db.clinicNotes.toArray());
@@ -42,6 +47,7 @@ export function ClinicNoteScreen() {
   if (!alters || !categories || !notes || !comments) {
     return (
       <main className="app">
+        {tabHeader}
         <p>読み込み中…</p>
       </main>
     );
@@ -127,14 +133,12 @@ export function ClinicNoteScreen() {
 
   return (
     <main className="app">
-      <header className="screen-header">
-        <h1>受診メモ</h1>
-        <div className="header-buttons">
-          <button type="button" onClick={() => open({ kind: 'categories' })}>
-            分類の設定
-          </button>
-        </div>
-      </header>
+      {tabHeader}
+      <div className="screen-actions">
+        <button type="button" onClick={() => open({ kind: 'categories' })}>
+          分類の設定
+        </button>
+      </div>
       {/* 診察室ですぐ押せるよう、見出しの下に横いっぱいの大きなボタンにする */}
       <button type="button" className="clinic-view-button" onClick={() => open({ kind: 'clinicView' })}>
         診察用の表示

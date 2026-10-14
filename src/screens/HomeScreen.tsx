@@ -1,5 +1,5 @@
-// ホーム画面(SPEC.md 6.1):今日・今週・今月の欄と、記録・取り消し
-import { useState } from 'react';
+// ToDo 画面(SPEC.md 6.1):今日・今週・今月の欄と、記録・取り消し。リストタブの中で、バケットと切り替える(5章)
+import { useState, type ReactNode } from 'react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { AlterPickerSheet } from '../components/home/AlterPickerSheet';
 import { TaskSection } from '../components/home/TaskSection';
@@ -18,9 +18,11 @@ type Modal = null | { kind: 'pick'; task: Task } | { kind: 'undo'; task: Task; l
 
 interface Props {
   onOpenTaskSettings: () => void;
+  /** タブの見出しと、タブの中の切り替えボタン(SPEC.md 5章) */
+  tabHeader: ReactNode;
 }
 
-export function HomeScreen({ onOpenTaskSettings }: Props) {
+export function HomeScreen({ onOpenTaskSettings, tabHeader }: Props) {
   const alters = useLiveQuery(() => db.alters.toArray());
   const tasks = useLiveQuery(() => db.tasks.toArray());
   const records = useLiveQuery(() => db.records.toArray());
@@ -85,17 +87,15 @@ export function HomeScreen({ onOpenTaskSettings }: Props) {
 
   return (
     <main className="app">
-      <header className="screen-header">
-        <h1>ひとつやね</h1>
-        <div className="header-buttons">
-          <button type="button" onClick={() => setReordering((current) => !current)}>
-            {reordering ? '完了' : '並び替え'}
-          </button>
-          <button type="button" onClick={onOpenTaskSettings}>
-            タスク設定
-          </button>
-        </div>
-      </header>
+      {tabHeader}
+      <div className="screen-actions">
+        <button type="button" onClick={() => setReordering((current) => !current)}>
+          {reordering ? '完了' : '並び替え'}
+        </button>
+        <button type="button" onClick={onOpenTaskSettings}>
+          タスク設定
+        </button>
+      </div>
       {renderContent()}
       {modal?.kind === 'pick' && (
         <AlterPickerSheet

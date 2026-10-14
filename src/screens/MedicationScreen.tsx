@@ -1,7 +1,7 @@
-// 服薬タブの最初の画面(SPEC.md 7章):記録画面
+// 服薬の最初の画面(SPEC.md 7章):記録画面。治療タブの中で、受診メモと切り替える(5章)
 // 上に時間帯ごと(朝食後/昼食後/夕食後/寝る前)の欄、その下に頓服。中止した薬は出さない(7.7)
 // 画面の上に「記録の一覧」(7.6)と「薬の設定」のボタン
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { AsNeededIntakeSheet } from '../components/medication/AsNeededIntakeSheet';
 import { AsNeededItem } from '../components/medication/AsNeededItem';
@@ -34,9 +34,11 @@ type Modal =
 interface Props {
   onOpenHistory: () => void;
   onOpenSettings: () => void;
+  /** タブの見出しと、タブの中の切り替えボタン(SPEC.md 5章) */
+  tabHeader: ReactNode;
 }
 
-export function MedicationScreen({ onOpenHistory, onOpenSettings }: Props) {
+export function MedicationScreen({ onOpenHistory, onOpenSettings, tabHeader }: Props) {
   const alters = useLiveQuery(() => db.alters.toArray());
   const medications = useLiveQuery(() => db.medications.toArray());
   const intakes = useLiveQuery(() => db.medicationIntakes.toArray());
@@ -139,17 +141,15 @@ export function MedicationScreen({ onOpenHistory, onOpenSettings }: Props) {
 
   return (
     <main className="app">
-      <header className="screen-header">
-        <h1>服薬</h1>
-        <div className="header-buttons">
-          <button type="button" onClick={onOpenHistory}>
-            記録の一覧
-          </button>
-          <button type="button" onClick={onOpenSettings}>
-            薬の設定
-          </button>
-        </div>
-      </header>
+      {tabHeader}
+      <div className="screen-actions">
+        <button type="button" onClick={onOpenHistory}>
+          記録の一覧
+        </button>
+        <button type="button" onClick={onOpenSettings}>
+          薬の設定
+        </button>
+      </div>
       {renderContent()}
       {/* 医療のアプリではないこと(SPEC.md 14章④) */}
       <p className="settings-note medical-notice">{MEDICAL_NOTICE}</p>

@@ -30,7 +30,6 @@ import { BackupScreen } from './BackupScreen';
 import { CommonInfoScreen } from './CommonInfoScreen';
 import { ProfileSectionEditScreen } from './ProfileSectionEditScreen';
 import { QuickTableScreen } from './QuickTableScreen';
-import { SwitchLogScreen } from './SwitchLogScreen';
 import { useTerm } from '../hooks/useTerm';
 
 /**
@@ -42,7 +41,6 @@ import { useTerm } from '../hooks/useTerm';
  * - common:全体のこと
  * - section:見出しの編集(ownerId が null なら「全体のこと」、sectionId が null なら追加)
  * - categories:区分の設定
- * - switchLog:交代の記録(SPEC.md 17.4)
  * - backup:バックアップ
  * - about:このアプリについて(SPEC.md 14章⑥)
  */
@@ -55,7 +53,6 @@ type View =
   | { kind: 'section'; ownerId: string | null; sectionId: string | null }
   | { kind: 'categories' }
   | { kind: 'quickTable' }
-  | { kind: 'switchLog' }
   | { kind: 'backup' }
   | { kind: 'about' };
 
@@ -178,8 +175,6 @@ function AlterInfoContent({ print, clearPrint, backupRequest, addAlterRequest }:
       return <AboutScreen onBack={backToList} />;
     case 'categories':
       return <AlterCategorySettingsScreen onBack={backToList} />;
-    case 'switchLog':
-      return <SwitchLogScreen onBack={backToList} />;
     case 'quickTable':
       return (
         <QuickTableScreen
@@ -306,13 +301,6 @@ function AlterInfoContent({ print, clearPrint, backupRequest, addAlterRequest }:
       </section>
       {/* 「人格」の呼び方(SPEC.md 14章③) */}
       <TermSettings />
-      {/* 交代の記録(SPEC.md 17.4)。記録は「変わったことに気づいた」ボタンから */}
-      <section className="settings-section">
-        <h2>交代の記録</h2>
-        <button type="button" className="add-button" onClick={() => open({ kind: 'switchLog' })}>
-          交代の記録を見る
-        </button>
-      </section>
       {/* 集計の表示のオン/オフ(SPEC.md 11章・14章②)。全員分で1つの設定。押すとすぐ保存(読み込み中は出さない) */}
       {showStats !== undefined && (
         <section className="settings-section">
