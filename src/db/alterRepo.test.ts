@@ -276,6 +276,21 @@ describe('人格の保存', () => {
       expect(await deleteAlter(database, a.id)).toBe(false);
     });
 
+    it('掲示板の書き込み・リアクションがある人格も削除されない(SPEC.md 3.1・22章)', async () => {
+      const a = await addAlter(database, { name: 'A', color: '#111111', categoryId: null }, now);
+      const b = await addAlter(database, { name: 'B', color: '#222222', categoryId: null }, now);
+      const c = await addAlter(database, { name: 'C', color: '#333333', categoryId: null }, now);
+      const at = now.toISOString();
+      await database.boardThreads.add({ id: 'th', boardId: 'board-home', alterId: a.id, title: 't', body: 'b', createdAt: at, editedAt: null });
+      await database.boardComments.add({ id: 'co', threadId: 'th', alterId: b.id, body: 'b', createdAt: at, editedAt: null });
+      await database.reactions.add({ id: 're', targetType: 'thread', targetId: 'th', kindId: 'reaction-read', alterId: c.id, createdAt: at });
+
+      for (const alter of [a, b, c]) {
+        expect(await countAlterRecords(database, alter.id)).toBe(1);
+        expect(await deleteAlter(database, alter.id)).toBe(false);
+      }
+    });
+
     it('服薬記録だけがある人格も削除されない', async () => {
       const a = await addAlter(database, { name: 'A', color: '#111111', categoryId: null }, now);
       await database.medicationIntakes.add({

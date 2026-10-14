@@ -12,6 +12,7 @@ import {
   type BackupData,
 } from './backup';
 import { buildInitialMedicationTimings } from './medicationTimings';
+import { buildHomeBoard, buildInitialReactionKinds } from './board';
 import { buildInitialClinicStaff } from './clinicVisits';
 import { buildInitialSwitchTags } from './switchLog';
 
@@ -35,6 +36,12 @@ function emptyData(): BackupData {
     bucketAlters: [],
     clinicVisits: [],
     clinicStaff: [],
+    // ホームの板はいつもある(ないファイルは足して読み込むため)
+    boards: [buildHomeBoard('2026-09-01T00:00:00.000Z')],
+    boardThreads: [],
+    boardComments: [],
+    reactionKinds: [],
+    reactions: [],
   };
 }
 
@@ -683,5 +690,83 @@ describe('受診の記録と、話した相手の選択肢(SPEC.md 8.5・8.6・1
       ok: false,
       reason: '「受診の記録」の1件目の話した相手が見つかりません',
     });
+  });
+});
+
+describe('掲示板(SPEC.md 12章・22章)', () => {
+  const createdAt = '2026-10-01T00:00:00.000Z';
+  function data(): BackupData {
+    const result = emptyData();
+    result.alters.push({
+      id: 'alter-a',
+      name: '人格A',
+      color: '#4a90d9',
+      hidden: false,
+      order: 0,
+      createdAt,
+      reading: '',
+      categoryId: null,
+      age: '',
+      gender: '',
+      identify: '',
+    });
+    result.boards.push({ id: 'board-2', name: '家のこと', order: 1, createdAt });
+    result.boardThreads.push({ id: 'th1', boardId: 'board-2', alterId: 'alter-a', title: '週末', body: '出かける?', createdAt, editedAt: null });
+    result.boardComments.push({ id: 'bc1', threadId: 'th1', alterId: null, body: 'いいね', createdAt, editedAt: createdAt });
+    result.reactionKinds.push(...buildInitialReactionKinds(createdAt));
+    result.reactions.push(
+      { id: 're1', targetType: 'thread', targetId: 'th1', kindId: 'reaction-read', alterId: 'alter-a', createdAt },
+      { id: 're2', targetType: 'comment', targetId: 'bc1', kindId: 'reaction-agree', alterId: 'alter-a', createdAt },
+    );
+    return result;
+  }
+
+  it('書き出したとおりに読み込める', () => {
+    const result = parseBackup(serializeBackup(buildBackup(data(), now)));
+    expect(result.ok && result.backup.data).toEqual(data());
+  });
+
+  it('掲示板がない古いファイルは、ホームの板だけ・書き込みなし・最初のリアクションとして読み込む', () => {
+    const json = exportedJson(data());
+    for (const name of ['boards', 'boardThreads', 'boardComments', 'reactionKinds', 'reactions']) {
+      delete (json.data as Record<string, unknown>)[name];
+    }
+    const result = parseBackup(JSON.stringify(json));
+    expect(result.ok && result.backup.data.boards).toEqual([buildHomeBoard(now.toISOString())]);
+    expect(result.ok && result.backup.data.boardThreads).toEqual([]);
+    expect(result.ok && result.backup.data.reactions).toEqual([]);
+    expect(result.ok && result.backup.data.reactionKinds).toEqual(buildInitialReactionKinds(now.toISOString()));
+  });
+
+  it('ホームの板がないファイルは、ホームの板を足して読み込む', () => {
+    const noHome = data();
+    noHome.boards = noHome.boards.filter((board) => board.id !== 'board-home');
+    const result = parseBackup(serializeBackup(buildBackup(noHome, now)));
+    expect(result.ok && result.backup.data.boards.map((board) => board.id)).toEqual(['board-home', 'board-2']);
+  });
+
+  it('ないものを指す書き込み・リアクションがあるファイルは読み込まない', () => {
+    const noBoard = data();
+    noBoard.boardThreads[0].boardId = 'deleted';
+    expect(parseBackup(serializeBackup(buildBackup(noBoard, now)))).toEqual({
+      ok: false,
+      reason: '「掲示板のスレッド」の1件目の板か人格が見つかりません',
+    });
+    const noThread = data();
+    noThread.boardComments[0].threadId = 'deleted';
+    expect(parseBackup(serializeBackup(buildBackup(noThread, now)))).toEqual({
+      ok: false,
+      reason: '「掲示板のコメント」の1件目のスレッドか人格が見つかりません',
+    });
+    const noKind = data();
+    noKind.reactions[1].kindId = 'deleted';
+    expect(parseBackup(serializeBackup(buildBackup(noKind, now)))).toEqual({
+      ok: false,
+      reason: '「リアクション」の2件目の書き込み・リアクションの選択肢・人格のどれかが見つかりません',
+    });
+    const wrongTarget = data();
+    // コメントの ID を、スレッドへのリアクションとして指している
+    wrongTarget.reactions[0].targetId = 'bc1';
+    expect(parseBackup(serializeBackup(buildBackup(wrongTarget, now))).ok).toBe(false);
   });
 });

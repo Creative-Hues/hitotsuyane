@@ -1,6 +1,7 @@
 // バックアップの中身の形のチェック(SPEC.md 12章)。純粋関数。
 // ライブラリを使わず、テーブルごとに「項目名 → チェック関数」の表で確かめる。
 // 表は Record<keyof 型, …> なので、型に項目を足したら、ここも直さないとビルドが通らない。
+import { buildHomeBoard, buildInitialReactionKinds, HOME_BOARD_ID } from './board';
 import { buildInitialBucketAlters } from './bucket';
 import { buildInitialClinicStaff } from './clinicVisits';
 import { buildInitialMedicationTimings } from './medicationTimings';
@@ -8,6 +9,9 @@ import { buildInitialSwitchTags, guessFromAlterId } from './switchLog';
 import type {
   Alter,
   AlterCategory,
+  Board,
+  BoardComment,
+  BoardThread,
   BucketAlter,
   BucketItem,
   ClinicNote,
@@ -21,6 +25,8 @@ import type {
   MedicationIntake,
   MedicationTiming,
   ProfileSection,
+  Reaction,
+  ReactionKind,
   StockLog,
   SwitchLog,
   SwitchTag,
@@ -84,7 +90,7 @@ const alterSchema: Schema<Alter> = {
   identify: isString,
 };
 
-const namedItemSchema: Schema<AlterCategory & ClinicNoteCategory & ClinicStaff> = {
+const namedItemSchema: Schema<AlterCategory & ClinicNoteCategory & ClinicStaff & Board & ReactionKind> = {
   id: isString,
   name: isString,
   order: isNumber,
@@ -224,6 +230,35 @@ const clinicVisitSchema: Schema<ClinicVisit> = {
   createdAt: isString,
 };
 
+const boardThreadSchema: Schema<BoardThread> = {
+  id: isString,
+  // 板・人格にあるかどうかは、全体を読んだあとで確かめる(checkReferences)
+  boardId: isString,
+  alterId: isNullableString,
+  title: isString,
+  body: isString,
+  createdAt: isString,
+  editedAt: isNullableString,
+};
+
+const boardCommentSchema: Schema<BoardComment> = {
+  id: isString,
+  threadId: isString,
+  alterId: isNullableString,
+  body: isString,
+  createdAt: isString,
+  editedAt: isNullableString,
+};
+
+const reactionSchema: Schema<Reaction> = {
+  id: isString,
+  targetType: oneOf('thread', 'comment'),
+  targetId: isString,
+  kindId: isString,
+  alterId: isString,
+  createdAt: isString,
+};
+
 /** バックアップに入れるデータ(端末の設定は入れない) */
 export interface BackupData {
   alters: Alter[];
@@ -247,6 +282,12 @@ export interface BackupData {
   clinicVisits: ClinicVisit[];
   /** 話した相手の選択肢(同じく追加。SPEC.md 8.6) */
   clinicStaff: ClinicStaff[];
+  /** 掲示板の板・スレッド・コメント・リアクションの選択肢・リアクション(フェーズ4で追加。SPEC.md 22章) */
+  boards: Board[];
+  boardThreads: BoardThread[];
+  boardComments: BoardComment[];
+  reactionKinds: ReactionKind[];
+  reactions: Reaction[];
 }
 
 /** テーブルごとのチェック表と、エラー表示用の名前 */
@@ -270,6 +311,11 @@ const TABLES: { [K in keyof BackupData]: { label: string; schema: Schema<BackupD
   bucketAlters: { label: 'バケットに出す人格', schema: bucketAlterSchema },
   clinicStaff: { label: '話した相手の選択肢', schema: namedItemSchema },
   clinicVisits: { label: '受診の記録', schema: clinicVisitSchema },
+  boards: { label: '掲示板の板', schema: namedItemSchema },
+  boardThreads: { label: '掲示板のスレッド', schema: boardThreadSchema },
+  boardComments: { label: '掲示板のコメント', schema: boardCommentSchema },
+  reactionKinds: { label: 'リアクションの選択肢', schema: namedItemSchema },
+  reactions: { label: 'リアクション', schema: reactionSchema },
 };
 
 /** バックアップに入れるテーブルの名前(並び順は書き出しの順) */
@@ -374,6 +420,33 @@ function checkReferences(data: BackupData): string | null {
   if (visitStaffIndex >= 0) {
     return `「受診の記録」の${visitStaffIndex + 1}件目の話した相手が見つかりません`;
   }
+  return checkBoardReferences(data, alterIds);
+}
+
+/** 掲示板のデータが、ファイルの中にあるデータを指しているか(SPEC.md 12章・22章)。だめなときは理由の文字列 */
+function checkBoardReferences(data: BackupData, alterIds: ReadonlySet<string>): string | null {
+  const knownAlter = (id: string | null) => id === null || alterIds.has(id);
+  const boardIds = new Set(data.boards.map((board) => board.id));
+  const threadIndex = data.boardThreads.findIndex((t) => !boardIds.has(t.boardId) || !knownAlter(t.alterId));
+  if (threadIndex >= 0) {
+    return `「掲示板のスレッド」の${threadIndex + 1}件目の板か人格が見つかりません`;
+  }
+  const threadIds = new Set(data.boardThreads.map((thread) => thread.id));
+  const commentIndex = data.boardComments.findIndex((c) => !threadIds.has(c.threadId) || !knownAlter(c.alterId));
+  if (commentIndex >= 0) {
+    return `「掲示板のコメント」の${commentIndex + 1}件目のスレッドか人格が見つかりません`;
+  }
+  const commentIds = new Set(data.boardComments.map((comment) => comment.id));
+  const kindIds = new Set(data.reactionKinds.map((kind) => kind.id));
+  const reactionIndex = data.reactions.findIndex(
+    (r) =>
+      !kindIds.has(r.kindId) ||
+      !alterIds.has(r.alterId) ||
+      !(r.targetType === 'thread' ? threadIds : commentIds).has(r.targetId),
+  );
+  if (reactionIndex >= 0) {
+    return `「リアクション」の${reactionIndex + 1}件目の書き込み・リアクションの選択肢・人格のどれかが見つかりません`;
+  }
   return null;
 }
 
@@ -387,6 +460,8 @@ function checkReferences(data: BackupData): string | null {
  *   追加した日時は書き出した日時
  * - 受診の記録(フェーズ3で追加):記録なし
  * - 話した相手の選択肢(フェーズ3で追加):最初の4つ。作成日時は書き出した日時
+ * - 掲示板(フェーズ4で追加):板はホームだけ、スレッド・コメント・リアクションはなし、リアクションの選択肢は最初の4つ
+ *   (作成日時は書き出した日時)
  * ほかのテーブルは、ないときはそのまま(読み込まない)
  * @param parsed ここまでに読んだテーブル(人格は「バケットに出す人格」より先に読む)
  */
@@ -406,6 +481,14 @@ function rowsOf(
       return [];
     case 'clinicStaff':
       return buildInitialClinicStaff(exportedAt);
+    case 'boards':
+      return [buildHomeBoard(exportedAt)];
+    case 'boardThreads':
+    case 'boardComments':
+    case 'reactions':
+      return [];
+    case 'reactionKinds':
+      return buildInitialReactionKinds(exportedAt);
     case 'medicationTimings':
       return buildInitialMedicationTimings(exportedAt);
     case 'clinicNoteComments':
@@ -435,7 +518,15 @@ export function parseBackupData(value: unknown, exportedAt: string): BackupData 
     }
     data[name] = parsed;
   }
-  const complete = { ...(data as BackupData), switchLogs: completeSwitchLogs(data.switchLogs as SwitchLog[]) };
+  const parsedData = data as BackupData;
+  const complete = {
+    ...parsedData,
+    switchLogs: completeSwitchLogs(parsedData.switchLogs),
+    // ホームの板がないファイルも、ホームの板を足して読み込む(SPEC.md 12章)
+    boards: parsedData.boards.some((board) => board.id === HOME_BOARD_ID)
+      ? parsedData.boards
+      : [buildHomeBoard(exportedAt), ...parsedData.boards],
+  };
   return checkReferences(complete) ?? complete;
 }
 

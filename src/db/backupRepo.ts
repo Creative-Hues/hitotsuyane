@@ -1,6 +1,7 @@
 // バックアップ用のデータの読み出し・置き換え(SPEC.md 12章)
 import type { AppDatabase } from './db';
 import type { BackupData, BackupSettings } from '../lib/backup';
+import { latestPostAt } from '../lib/board';
 import { getAltersTerm, setAltersTerm } from './settingsRepo';
 
 /** バックアップの対象のテーブル(端末の設定 meta は入れない) */
@@ -24,6 +25,11 @@ function backupTables(database: AppDatabase) {
     database.bucketAlters,
     database.clinicVisits,
     database.clinicStaff,
+    database.boards,
+    database.boardThreads,
+    database.boardComments,
+    database.reactionKinds,
+    database.reactions,
   ];
 }
 
@@ -48,6 +54,11 @@ export async function readAllData(database: AppDatabase): Promise<BackupData> {
     bucketAlters: await database.bucketAlters.toArray(),
     clinicVisits: await database.clinicVisits.toArray(),
     clinicStaff: await database.clinicStaff.toArray(),
+    boards: await database.boards.toArray(),
+    boardThreads: await database.boardThreads.toArray(),
+    boardComments: await database.boardComments.toArray(),
+    reactionKinds: await database.reactionKinds.toArray(),
+    reactions: await database.reactions.toArray(),
   }));
 }
 
@@ -60,10 +71,11 @@ export async function readBackupSettings(database: AppDatabase): Promise<BackupS
  * 今のデータをすべて消し、バックアップの中身に置き換える。
  * 1つのトランザクション(まとめて1回の処理)で行うので、途中で失敗したら何も変わらない。
  * 端末の設定のうち、最後に書き出した日時・集計の表示は置き換えない。
+ * 掲示板の「見た」の記録は、読み込んだすべての書き込みを「見た」にする(新着を出さない。SPEC.md 12章・22.4)。
  * settings を渡したときは、呼び方も一緒に置き換える
  */
 export async function replaceAllData(database: AppDatabase, data: BackupData, settings?: BackupSettings): Promise<void> {
-  await database.transaction('rw', [...backupTables(database), database.meta], async () => {
+  await database.transaction('rw', [...backupTables(database), database.meta, database.boardSeen], async () => {
     if (settings) {
       await setAltersTerm(database, settings.altersTerm);
     }
@@ -86,6 +98,15 @@ export async function replaceAllData(database: AppDatabase, data: BackupData, se
     await database.bucketAlters.bulkAdd(data.bucketAlters);
     await database.clinicVisits.bulkAdd(data.clinicVisits);
     await database.clinicStaff.bulkAdd(data.clinicStaff);
+    await database.boards.bulkAdd(data.boards);
+    await database.boardThreads.bulkAdd(data.boardThreads);
+    await database.boardComments.bulkAdd(data.boardComments);
+    await database.reactionKinds.bulkAdd(data.reactionKinds);
+    await database.reactions.bulkAdd(data.reactions);
+    await database.boardSeen.clear();
+    await database.boardSeen.bulkAdd(
+      data.boardThreads.map((thread) => ({ threadId: thread.id, seenPostAt: latestPostAt(thread, data.boardComments) })),
+    );
   });
 }
 

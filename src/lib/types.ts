@@ -273,3 +273,72 @@ export interface ClinicStaff {
   order: number;
   createdAt: string;
 }
+
+/** 掲示板の板(永続データ。SPEC.md 22.2)。ホームの板は決まった ID */
+export interface Board {
+  id: string;
+  name: string;
+  /** 並び順(ホームは使わず、いつも一番左) */
+  order: number;
+  createdAt: string;
+}
+
+/** 掲示板のスレッド(永続データ。SPEC.md 22.3) */
+export interface BoardThread {
+  id: string;
+  boardId: string;
+  /** 書いた人格のID。「わからない」の場合は null */
+  alterId: string | null;
+  title: string;
+  body: string;
+  /** 書いた日時(ISO形式) */
+  createdAt: string;
+  /** 直した日時(ISO形式)。直していなければ null */
+  editedAt: string | null;
+}
+
+/** 掲示板のコメント(永続データ。SPEC.md 22.3) */
+export interface BoardComment {
+  id: string;
+  threadId: string;
+  /** 書いた人格のID。「わからない」の場合は null */
+  alterId: string | null;
+  body: string;
+  /** 書いた日時(ISO形式) */
+  createdAt: string;
+  /** 直した日時(ISO形式)。直していなければ null */
+  editedAt: string | null;
+}
+
+/** リアクションの選択肢(永続データ。SPEC.md 22.5) */
+export interface ReactionKind {
+  id: string;
+  name: string;
+  order: number;
+  createdAt: string;
+}
+
+/** リアクションを付けたもの:スレッドの本文 / コメント */
+export type ReactionTargetType = 'thread' | 'comment';
+
+/** リアクション(永続データ。SPEC.md 22.5) */
+export interface Reaction {
+  id: string;
+  targetType: ReactionTargetType;
+  /** スレッドかコメントのID */
+  targetId: string;
+  /** リアクションの選択肢のID */
+  kindId: string;
+  /** 付けた人格のID(「わからない」は付けられない) */
+  alterId: string;
+  /** 付けた日時(ISO形式) */
+  createdAt: string;
+}
+
+/** 掲示板の「見た」の記録(端末の設定と同じ扱い。バックアップに入れない。SPEC.md 22.4) */
+export interface BoardSeen {
+  /** スレッドのID(主キー) */
+  threadId: string;
+  /** 最後に見たときの、いちばん新しい書き込みの日時(ISO形式) */
+  seenPostAt: string;
+}

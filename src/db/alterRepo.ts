@@ -77,6 +77,7 @@ export async function reorderAlters(database: AppDatabase, orderedIds: readonly 
  * バケットは、その人格のリストの項目(削除済みも含む)と、協力者に入っている項目を数える。
  * 「バケットに出す人格」に入っているだけなら数えない。
  * 交代の記録は、交代した人格と、交代前の人格の両方を数える。受診の記録は、受診した人格を数える。
+ * 掲示板は、スレッド・コメントを書いた人格と、リアクションを付けた人格を数える。
  * 全件を見て数える(記録は1年分だけ、メモ・コメント・バケットも多くはならないため)
  */
 export async function countAlterRecords(database: AppDatabase, id: string): Promise<number> {
@@ -88,6 +89,9 @@ export async function countAlterRecords(database: AppDatabase, id: string): Prom
     database.bucketItems.filter((item) => item.alterId === id || item.helperAlterIds.includes(id)).count(),
     database.switchLogs.filter((log) => log.alterId === id || log.fromAlterId === id).count(),
     database.clinicVisits.filter((visit) => visit.alterIds.includes(id)).count(),
+    database.boardThreads.filter((thread) => thread.alterId === id).count(),
+    database.boardComments.filter((comment) => comment.alterId === id).count(),
+    database.reactions.where('alterId').equals(id).count(),
   ]);
   return counts.reduce((sum, count) => sum + count, 0);
 }
@@ -119,6 +123,9 @@ export async function deleteAlter(database: AppDatabase, id: string): Promise<bo
     database.profileSections,
     database.bucketAlters,
     database.clinicVisits,
+    database.boardThreads,
+    database.boardComments,
+    database.reactions,
   ];
   return database.transaction('rw', tables, async () => {
     if ((await countAlterRecords(database, id)) > 0) {

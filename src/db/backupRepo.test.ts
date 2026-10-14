@@ -8,6 +8,7 @@ import { BACKUP_TABLE_NAMES } from '../lib/backupSchema';
 import { buildInitialMedicationTimings } from '../lib/medicationTimings';
 
 const now = new Date(2026, 8, 28, 21, 30);
+const createdAtOld = '2026-01-01T00:00:00.000Z';
 
 /** すべてのテーブルに1件以上入ったデータ */
 function fullData(): BackupData {
@@ -172,6 +173,25 @@ function fullData(): BackupData {
       { id: 'clinic-staff-doctor', name: '主治医', order: 0, createdAt },
       { id: 'staff-custom', name: '薬剤師', order: 1, createdAt },
     ],
+    boards: [
+      { id: 'board-home', name: 'ホーム', order: 0, createdAt },
+      { id: 'board-2', name: '家のこと', order: 1, createdAt },
+    ],
+    boardThreads: [
+      { id: 'th1', boardId: 'board-2', alterId: 'alter-a', title: '週末', body: '出かける?', createdAt, editedAt: null },
+      { id: 'th2', boardId: 'board-home', alterId: null, title: '薬', body: '時間を変えたい', createdAt, editedAt: createdAt },
+    ],
+    boardComments: [
+      { id: 'bc1', threadId: 'th1', alterId: 'alter-b', body: '行く', createdAt: '2026-09-02T00:00:00.000Z', editedAt: null },
+    ],
+    reactionKinds: [
+      { id: 'reaction-read', name: '既読', order: 0, createdAt },
+      { id: 'reaction-custom', name: 'ありがとう', order: 1, createdAt },
+    ],
+    reactions: [
+      { id: 're1', targetType: 'thread', targetId: 'th1', kindId: 'reaction-read', alterId: 'alter-b', createdAt },
+      { id: 're2', targetType: 'comment', targetId: 'bc1', kindId: 'reaction-custom', alterId: 'alter-a', createdAt },
+    ],
   };
 }
 
@@ -201,7 +221,8 @@ describe('バックアップの書き出しと読み込み', () => {
   });
 
   it('データベースのテーブルは、端末の設定を除いてすべてバックアップの対象になっている', () => {
-    const tableNames = database.tables.map((table) => table.name).filter((name) => name !== 'meta');
+    // 端末の設定(meta)と、掲示板の「見た」の記録(boardSeen)は入れない
+    const tableNames = database.tables.map((table) => table.name).filter((name) => name !== 'meta' && name !== 'boardSeen');
     expect([...tableNames].sort()).toEqual([...BACKUP_TABLE_NAMES].sort());
   });
 
@@ -246,6 +267,15 @@ describe('バックアップの書き出しと読み込み', () => {
     expect(await readBackupSettings(database)).toEqual({ altersTerm: 'パーツ' });
     await replaceAllData(database, fullData());
     expect(await readBackupSettings(database)).toEqual({ altersTerm: 'パーツ' });
+  });
+
+  it('読み込んだあとは、掲示板のすべての書き込みを「見た」にする(SPEC.md 12章・22.4)', async () => {
+    await database.boardSeen.add({ threadId: 'old-thread', seenPostAt: createdAtOld });
+    await replaceAllData(database, fullData());
+    expect((await database.boardSeen.toArray()).sort((a, b) => a.threadId.localeCompare(b.threadId))).toEqual([
+      { threadId: 'th1', seenPostAt: '2026-09-02T00:00:00.000Z' },
+      { threadId: 'th2', seenPostAt: '2026-09-01T00:00:00.000Z' },
+    ]);
   });
 
   it('最後に書き出した日時は、読み込みで置き換わらない', async () => {

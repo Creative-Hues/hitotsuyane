@@ -4,6 +4,10 @@ import type {
   Alter,
   AlterCategory,
   AppMeta,
+  Board,
+  BoardComment,
+  BoardSeen,
+  BoardThread,
   BucketAlter,
   BucketItem,
   ClinicNote,
@@ -16,12 +20,15 @@ import type {
   MedicationIntake,
   MedicationTiming,
   ProfileSection,
+  Reaction,
+  ReactionKind,
   StockLog,
   SwitchLog,
   SwitchLogV6,
   SwitchTag,
   Task,
 } from '../lib/types';
+import { buildHomeBoard, buildInitialReactionKinds } from '../lib/board';
 import { buildInitialBucketAlters } from '../lib/bucket';
 import { buildInitialClinicStaff } from '../lib/clinicVisits';
 import { buildInitialMedicationTimings } from '../lib/medicationTimings';
@@ -55,6 +62,12 @@ export class AppDatabase extends Dexie {
   bucketAlters!: EntityTable<BucketAlter, 'alterId'>;
   clinicVisits!: EntityTable<ClinicVisit, 'id'>;
   clinicStaff!: EntityTable<ClinicStaff, 'id'>;
+  boards!: EntityTable<Board, 'id'>;
+  boardThreads!: EntityTable<BoardThread, 'id'>;
+  boardComments!: EntityTable<BoardComment, 'id'>;
+  reactionKinds!: EntityTable<ReactionKind, 'id'>;
+  reactions!: EntityTable<Reaction, 'id'>;
+  boardSeen!: EntityTable<BoardSeen, 'threadId'>;
   meta!: EntityTable<AppMeta, 'key'>;
 
   // データベースの名前は src/lib/appTarget.ts で決める(SPEC.md 19章・21章)。
@@ -121,7 +134,20 @@ export class AppDatabase extends Dexie {
     this.version(8)
       .stores({ clinicVisits: 'id, visitedOn', clinicStaff: 'id, order' })
       .upgrade((tx) => addInitialClinicStaff(tx, new Date()));
-    // 新しく入れたとき(版1〜8の upgrade を通らない)の最初のデータ
+    // 版9:SPEC.md 3.5(2026年10月のブラッシュアップ フェーズ4)。
+    // 掲示板の板・スレッド・コメント・リアクションの選択肢・リアクション・「見た」の記録のテーブルを足し、
+    // ホームの板とリアクションの最初の選択肢を入れる。今のデータは書き換えない
+    this.version(9)
+      .stores({
+        boards: 'id, order',
+        boardThreads: 'id, boardId',
+        boardComments: 'id, threadId',
+        reactionKinds: 'id, order',
+        reactions: 'id, targetId, alterId',
+        boardSeen: 'threadId',
+      })
+      .upgrade((tx) => addInitialBoardData(tx, new Date()));
+    // 新しく入れたとき(版1〜9の upgrade を通らない)の最初のデータ
     // 区分は空で始め、受診メモの分類は呼び方を使わない名前にする(SPEC.md 14章③)
     this.on('populate', async (tx) => {
       const now = new Date();
@@ -132,6 +158,7 @@ export class AppDatabase extends Dexie {
       await addMissingProfileSections(tx, now);
       await addInitialSwitchTags(tx, now);
       await addInitialClinicStaff(tx, now);
+      await addInitialBoardData(tx, now);
     });
   }
 }
@@ -160,6 +187,12 @@ async function addInitialMedicationTimings(tx: Transaction, now: Date): Promise<
   await tx
     .table<MedicationTiming, string>('medicationTimings')
     .bulkAdd(buildInitialMedicationTimings(now.toISOString()));
+}
+
+/** ホームの板と、リアクションの最初の選択肢を入れる(SPEC.md 22.2・22.5) */
+async function addInitialBoardData(tx: Transaction, now: Date): Promise<void> {
+  await tx.table<Board, string>('boards').add(buildHomeBoard(now.toISOString()));
+  await tx.table<ReactionKind, string>('reactionKinds').bulkAdd(buildInitialReactionKinds(now.toISOString()));
 }
 
 /** 話した相手の最初の選択肢を入れる(SPEC.md 8.6) */

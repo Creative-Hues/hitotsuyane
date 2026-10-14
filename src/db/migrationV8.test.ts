@@ -101,8 +101,7 @@ describe('版7 → 版8(SPEC.md 3.5)', () => {
     await writeV7();
     database = new AppDatabase(DB_NAME);
     await database.open();
-    expect(database.verno).toBe(8);
-    expect(DB_VERSION).toBe(8);
+    expect(database.verno).toBe(DB_VERSION);
     for (const [name, rows] of Object.entries(v7Rows)) {
       expect(await database.table(name).toArray(), name).toEqual(rows);
     }
@@ -125,7 +124,7 @@ describe('版7 → 版8(SPEC.md 3.5)', () => {
     await writeV7();
     expect(await prepareDatabase(now, { dbName: DB_NAME, backupDatabase })).toBe('saved');
     const snapshot = await getBeforeUpdateSnapshot(backupDatabase);
-    expect(snapshot).toMatchObject({ fromVersion: 7, toVersion: 8, noticePending: true });
+    expect(snapshot).toMatchObject({ fromVersion: 7, toVersion: DB_VERSION, noticePending: true });
     const parsed = parseBackup(snapshot?.text ?? '');
     if (!parsed.ok) {
       throw new Error(parsed.reason);
