@@ -29,7 +29,8 @@ export type Cycle =
   | { type: 'daily' } // 毎日
   | { type: 'everyNDays'; n: number } // ○日ごと(n は 2 以上の整数)
   | { type: 'weekly' } // 毎週
-  | { type: 'monthly' }; // 毎月
+  | { type: 'monthly' } // 毎月
+  | { type: 'none' }; // 期限なし(一度完了したら、取り消すまで完了のまま。SPEC.md 3.2・6.1)
 
 /** タスク(永続データ) */
 export interface Task {
@@ -219,6 +220,26 @@ export interface SwitchLog {
   switchedAt: string | null;
   /** きっかけのID(0個も可。0個は「わからない」) */
   tagIds: string[];
+  /** 交代前の人格のID。「わからない」の場合は null(SPEC.md 17.3) */
+  fromAlterId: string | null;
+  /** 交代前の人格を、推測のまま記録したか('guessed')、人が選んだか('confirmed') */
+  fromAlterSource: FromAlterSource;
+}
+
+/** 交代前の人格の決め方:推測のまま / 「交代前の人格を修正」で選んだ(SPEC.md 17.3) */
+export type FromAlterSource = 'guessed' | 'confirmed';
+
+/** 版6までの交代の記録(交代前の人格の項目がない) */
+export type SwitchLogV6 = Omit<SwitchLog, 'fromAlterId' | 'fromAlterSource'>;
+
+/** バケットに出す人格(永続データ。SPEC.md 9.1)。並び順は人格の並び順を使う */
+export interface BucketAlter {
+  /** 人格のID(主キー) */
+  alterId: string;
+  /** バケットから外したか(外しても消さない。「+」からまた出せる) */
+  hidden: boolean;
+  /** 追加した日時(ISO形式) */
+  addedAt: string;
 }
 
 /** 端末の設定(キーと値)。バックアップには含めない */

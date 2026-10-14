@@ -228,11 +228,38 @@ describe('人格の保存', () => {
         noticedAt: now.toISOString(),
         switchedAt: null,
         tagIds: [],
+        fromAlterId: null,
+        fromAlterSource: 'guessed',
       });
 
       expect(await countAlterRecords(database, a.id)).toBe(1);
       expect(await deleteAlter(database, a.id)).toBe(false);
       expect(await database.alters.get(a.id)).toBeDefined();
+    });
+
+    it('バケットに出しているだけの人格は削除でき、バケットに出す人格からも外れる(SPEC.md 3.1)', async () => {
+      const a = await addAlter(database, { name: 'A', color: '#111111', categoryId: null }, now);
+      await database.bucketAlters.add({ alterId: a.id, hidden: false, addedAt: now.toISOString() });
+
+      expect(await countAlterRecords(database, a.id)).toBe(0);
+      expect(await deleteAlter(database, a.id)).toBe(true);
+      expect(await database.bucketAlters.count()).toBe(0);
+    });
+
+    it('交代前の人格になっている人格も削除されない(SPEC.md 3.1)', async () => {
+      const a = await addAlter(database, { name: 'A', color: '#111111', categoryId: null }, now);
+      await database.switchLogs.add({
+        id: 'sw1',
+        alterId: null,
+        noticedAt: now.toISOString(),
+        switchedAt: null,
+        tagIds: [],
+        fromAlterId: a.id,
+        fromAlterSource: 'confirmed',
+      });
+
+      expect(await countAlterRecords(database, a.id)).toBe(1);
+      expect(await deleteAlter(database, a.id)).toBe(false);
     });
 
     it('服薬記録だけがある人格も削除されない', async () => {

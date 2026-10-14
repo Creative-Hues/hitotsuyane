@@ -12,5 +12,7 @@ export function cycleLabel(cycle: Cycle): string {
       return '毎週';
     case 'monthly':
       return '毎月';
+    case 'none':
+      return '期限なし';
   }
 }

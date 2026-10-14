@@ -126,7 +126,7 @@ describe('データベースの版を上げる', () => {
     database = new AppDatabase(DB_NAME);
     await database.open();
 
-    expect(database.verno).toBe(6);
+    expect(database.verno).toBe(DB_VERSION);
     expect(await database.alters.orderBy('order').toArray()).toEqual([
       { ...alterA, reading: '', categoryId: null, age: '', gender: '', identify: '' },
       { ...alterB, reading: '', categoryId: null, age: '', gender: '', identify: '' },
@@ -261,7 +261,7 @@ describe('データベースの版を上げる', () => {
       database = new AppDatabase(DB_NAME);
       await database.open();
 
-      expect(database.verno).toBe(6);
+      expect(database.verno).toBe(DB_VERSION);
       expect(await timingRows(database)).toEqual(DEFAULT_TIMING_ROWS);
       expect(await database.medications.orderBy('order').toArray()).toEqual(medications);
       expect(await database.medicationIntakes.orderBy('id').toArray()).toEqual(intakes);
@@ -279,7 +279,7 @@ describe('データベースの版を上げる', () => {
 
       database = new AppDatabase(DB_NAME);
       await database.open();
-      expect(database.verno).toBe(6);
+      expect(database.verno).toBe(DB_VERSION);
       expect(await timingRows(database)).toEqual(DEFAULT_TIMING_ROWS);
     });
 
@@ -400,7 +400,7 @@ describe('データベースの版を上げる', () => {
       database = new AppDatabase(DB_NAME);
       await database.open();
 
-      expect(database.verno).toBe(6);
+      expect(database.verno).toBe(DB_VERSION);
       for (const [name, rows] of Object.entries(v3Rows)) {
         expect(await database.table(name).toArray(), name).toEqual(rows);
       }
@@ -425,7 +425,7 @@ describe('データベースの版を上げる', () => {
       v1.close();
       database = new AppDatabase(DB_NAME);
       await database.open();
-      expect(database.verno).toBe(6);
+      expect(database.verno).toBe(DB_VERSION);
       expect(await database.clinicNoteComments.count()).toBe(0);
       expect(await database.clinicNoteCategories.count()).toBe(7);
       expect(await database.medicationTimings.count()).toBe(4);
@@ -434,7 +434,7 @@ describe('データベースの版を上げる', () => {
 
       database = new AppDatabase(DB_NAME);
       await database.open();
-      expect(database.verno).toBe(6);
+      expect(database.verno).toBe(DB_VERSION);
       expect(await database.clinicNoteComments.count()).toBe(0);
       expect(await database.clinicNoteCategories.count()).toBe(7);
       expect(await database.medicationTimings.count()).toBe(4);
@@ -507,7 +507,7 @@ describe('データベースの版を上げる', () => {
     it('今のデータは1文字も変わらず、見出しのない人格と「全体のこと」にだけ最初の見出しが入る', async () => {
       database = await openFromV4();
 
-      expect(database.verno).toBe(6);
+      expect(database.verno).toBe(DB_VERSION);
       for (const [name, rows] of Object.entries(v4Rows)) {
         expect(await database.table(name).toArray(), name).toEqual(rows);
       }
@@ -600,14 +600,22 @@ describe('データベースの版を上げる', () => {
 
       database = new AppDatabase(DB_NAME);
       await database.open();
-      expect(database.verno).toBe(6);
+      expect(database.verno).toBe(DB_VERSION);
       for (const [name, rows] of Object.entries(v5Rows)) {
         expect(await database.table(name).toArray(), name).toEqual(rows);
       }
       expect(await tagRows(database)).toEqual(defaultTagRows);
       expect(await database.switchLogs.count()).toBe(0);
 
-      const log = { id: 'sw1', alterId: 'alter-a', noticedAt: '2026-10-02T12:00:00.000Z', switchedAt: null, tagIds: [] };
+      const log = {
+        id: 'sw1',
+        alterId: 'alter-a',
+        noticedAt: '2026-10-02T12:00:00.000Z',
+        switchedAt: null,
+        tagIds: [],
+        fromAlterId: null,
+        fromAlterSource: 'guessed' as const,
+      };
       await database.switchLogs.add(log);
       database.close();
       database = new AppDatabase(DB_NAME);

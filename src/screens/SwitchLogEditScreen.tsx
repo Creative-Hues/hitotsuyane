@@ -67,7 +67,7 @@ export function SwitchLogEditScreen({ log, alters, tags, onBack }: Props) {
         switchedAt,
         // 見つからないきっかけは外す
         tagIds: tagIds.filter((id) => tags.some((tag) => tag.id === id)),
-      });
+      }, { kind: 'guess' });
       onBack();
     } catch (saveError) {
       showSaveError(saveError);

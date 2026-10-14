@@ -139,3 +139,18 @@ describe('今の期間の記録(取り消しの対象)', () => {
     expect(ids(getCurrentPeriodRecords(cycle, records, at(9, 25, 20)))).toEqual(['today']);
   });
 });
+
+describe('期限なし(SPEC.md 3.2)', () => {
+  const none: Cycle = { type: 'none' };
+
+  it('記録がなければ未完了、記録があれば日がたっても完了のまま(いちばん新しい記録)', () => {
+    expect(getTaskStatus(none, [], at(9, 25)).status).toBe('todo');
+    const records = [record('old', at(1, 5)), record('new', at(3, 1))];
+    expect(getTaskStatus(none, records, at(12, 31))).toEqual({ status: 'done', currentRecord: records[1] });
+  });
+
+  it('取り消しで消すのは、そのタスクのすべての記録', () => {
+    const records = [record('old', at(1, 5)), record('new', at(3, 1))];
+    expect(getCurrentPeriodRecords(none, records, at(12, 31)).map((r) => r.id)).toEqual(['old', 'new']);
+  });
+});

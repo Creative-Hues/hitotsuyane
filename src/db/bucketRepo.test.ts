@@ -7,7 +7,9 @@ import {
   achieveBucketItem,
   addBucketItem,
   deleteBucketItems,
+  hideAlterFromBucket,
   reorderBucketItems,
+  showAlterInBucket,
   unachieveBucketItem,
   updateBucketItem,
 } from './bucketRepo';
@@ -121,5 +123,28 @@ describe('バケットの保存', () => {
     const { pending } = splitBucketItems(await database.bucketItems.toArray(), 'A');
     expect(pending.map((item) => item.id)).toEqual([c.id, a.id, b.id]);
     expect((await database.bucketItems.get(other.id))?.order).toBe(other.order);
+  });
+});
+
+describe('バケットに出す人格(SPEC.md 9.1)', () => {
+  let database: AppDatabase;
+  const now = new Date(2026, 9, 14, 9, 0);
+
+  beforeEach(() => {
+    database = new AppDatabase('did-todo-test-bucket-alters');
+  });
+
+  afterEach(async () => {
+    await database.delete();
+  });
+
+  it('追加・外す・再表示しても、リストの項目は変わらず、追加した日時もそのまま', async () => {
+    const item = await addBucketItem(database, 'alter-a', '海に行く', now);
+    await showAlterInBucket(database, 'alter-a', now);
+    await hideAlterFromBucket(database, 'alter-a');
+    expect(await database.bucketAlters.get('alter-a')).toEqual({ alterId: 'alter-a', hidden: true, addedAt: now.toISOString() });
+    await showAlterInBucket(database, 'alter-a', new Date(2026, 9, 20));
+    expect(await database.bucketAlters.get('alter-a')).toEqual({ alterId: 'alter-a', hidden: false, addedAt: now.toISOString() });
+    expect(await database.bucketItems.toArray()).toEqual([item]);
   });
 });

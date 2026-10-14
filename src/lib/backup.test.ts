@@ -3,7 +3,9 @@ import {
   BACKUP_FORMAT_VERSION,
   backupFileName,
   backupReminderText,
+  beforeUpdateFileName,
   buildBackup,
+  buildRawBackupText,
   isBackupOverdue,
   parseBackup,
   serializeBackup,
@@ -29,6 +31,7 @@ function emptyData(): BackupData {
     bucketItems: [],
     switchTags: [],
     switchLogs: [],
+    bucketAlters: [],
   };
 }
 
@@ -409,8 +412,19 @@ describe('交代の記録のバックアップ(SPEC.md 12章・17章)', () => {
         noticedAt: '2026-09-27T12:00:00.000Z',
         switchedAt: '2026-09-27T11:30:00.000Z',
         tagIds: ['switch-tag-sound', 'tag-custom'],
+        fromAlterId: null,
+        fromAlterSource: 'guessed',
       },
-      { id: 'sw2', alterId: null, noticedAt: '2026-09-28T01:00:00.000Z', switchedAt: null, tagIds: [] },
+      {
+        id: 'sw2',
+        alterId: null,
+        noticedAt: '2026-09-28T01:00:00.000Z',
+        switchedAt: null,
+        tagIds: [],
+        // ファイルの中に人格がないので、交代前は「わからない」を選んだ記録にする
+        fromAlterId: null,
+        fromAlterSource: 'confirmed',
+      },
     );
     return data;
   }
@@ -469,5 +483,141 @@ describe('呼び方のバックアップ(SPEC.md 12章・14章③)', () => {
     expect(parseBackup(JSON.stringify(json))).toEqual({ ok: false, reason: '呼び方の設定が正しくありません' });
     json.settings = 'メンバー';
     expect(parseBackup(JSON.stringify(json))).toEqual({ ok: false, reason: '呼び方の設定が正しくありません' });
+  });
+});
+
+describe('2026年10月のブラッシュアップ フェーズ2で足したデータ(SPEC.md 12章)', () => {
+  function alterRow(id: string, order: number, hidden: boolean) {
+    return {
+      id,
+      name: id,
+      color: '#4a90d9',
+      hidden,
+      order,
+      createdAt: '2026-09-01T00:00:00.000Z',
+      reading: '',
+      categoryId: null,
+      age: '',
+      gender: '',
+      identify: '',
+    };
+  }
+
+  function data(): BackupData {
+    const result = emptyData();
+    result.alters.push(alterRow('alter-a', 0, false), alterRow('alter-b', 1, false), alterRow('alter-h', 2, true));
+    result.tasks.push({
+      id: 'task-none',
+      name: '粗大ごみの申し込み',
+      cycle: { type: 'none' },
+      careAlterIds: [],
+      hidden: false,
+      order: 0,
+      createdAt: '2026-09-01T00:00:00.000Z',
+    });
+    result.switchLogs.push(
+      {
+        id: 'sw1',
+        alterId: 'alter-a',
+        noticedAt: '2026-10-01T01:00:00.000Z',
+        switchedAt: '2026-10-01T01:00:00.000Z',
+        tagIds: [],
+        fromAlterId: null,
+        fromAlterSource: 'guessed',
+      },
+      {
+        id: 'sw2',
+        alterId: 'alter-b',
+        noticedAt: '2026-10-01T02:00:00.000Z',
+        switchedAt: null,
+        tagIds: [],
+        fromAlterId: 'alter-h',
+        fromAlterSource: 'confirmed',
+      },
+    );
+    result.bucketAlters.push(
+      { alterId: 'alter-a', hidden: false, addedAt: '2026-10-14T00:00:00.000Z' },
+      { alterId: 'alter-b', hidden: true, addedAt: '2026-10-14T00:00:00.000Z' },
+    );
+    return result;
+  }
+
+  it('期限なしのタスク・交代前の人格・バケットに出す人格も、書き出したとおりに読み込める', () => {
+    const result = parseBackup(serializeBackup(buildBackup(data(), now)));
+    expect(result.ok && result.backup.data).toEqual(data());
+  });
+
+  it('バケットに出す人格がない古いファイルは、非表示でない人格全員が入っているものとして読み込む', () => {
+    const json = exportedJson(data());
+    delete (json.data as Record<string, unknown>).bucketAlters;
+    const result = parseBackup(JSON.stringify(json));
+    expect(result.ok && result.backup.data.bucketAlters).toEqual([
+      { alterId: 'alter-a', hidden: false, addedAt: now.toISOString() },
+      { alterId: 'alter-b', hidden: false, addedAt: now.toISOString() },
+    ]);
+  });
+
+  it('交代前の人格がない記録は、時刻順に推測して「推測」として読み込む', () => {
+    const json = exportedJson(data());
+    const logs = (json.data as { switchLogs: Record<string, unknown>[] }).switchLogs;
+    for (const log of logs) {
+      delete log.fromAlterId;
+      delete log.fromAlterSource;
+    }
+    const result = parseBackup(JSON.stringify(json));
+    expect(result.ok && result.backup.data.switchLogs.map((log) => [log.id, log.fromAlterId, log.fromAlterSource])).toEqual([
+      ['sw1', null, 'guessed'],
+      ['sw2', 'alter-a', 'guessed'],
+    ]);
+  });
+
+  it('交代前の人格が、ない人格を指しているファイルは読み込まない', () => {
+    const broken = data();
+    broken.switchLogs[1].fromAlterId = 'deleted';
+    expect(parseBackup(serializeBackup(buildBackup(broken, now)))).toEqual({
+      ok: false,
+      reason: '「交代の記録」の2件目の交代前の人格が見つかりません',
+    });
+  });
+
+  it('バケットに出す人格が、ない人格を指しているファイルは読み込まない', () => {
+    const broken = data();
+    broken.bucketAlters.push({ alterId: 'deleted', hidden: false, addedAt: '' });
+    expect(parseBackup(serializeBackup(buildBackup(broken, now)))).toEqual({
+      ok: false,
+      reason: '「バケットに出す人格」の3件目の人格が見つかりません',
+    });
+  });
+
+  it('同じ人格がバケットに出す人格に2つあるファイルは読み込まない', () => {
+    const broken = data();
+    broken.bucketAlters.push({ ...broken.bucketAlters[0] });
+    expect(parseBackup(serializeBackup(buildBackup(broken, now)))).toEqual({
+      ok: false,
+      reason: '「バケットに出す人格」に同じIDのデータが2つあります',
+    });
+  });
+});
+
+describe('更新前のデータ(SPEC.md 12章・18.4)', () => {
+  it('ファイル名は保存した日(実際の日付)。テスト版は名前で見分けられる', () => {
+    expect(beforeUpdateFileName(new Date(2026, 9, 14, 4, 0))).toBe('hitotsuyane-backup-before-update-2026-10-14.json');
+    expect(beforeUpdateFileName(new Date(2026, 9, 14, 4, 0), true)).toBe(
+      'hitotsuyane-backup-test-before-update-2026-10-14.json',
+    );
+  });
+
+  it('古い版のテーブルをそのまま入れた文字列は、古い形のファイルとして読み込める', () => {
+    const tables = Object.fromEntries(Object.entries(emptyData()).filter(([name]) => name !== 'bucketAlters'));
+    const text = buildRawBackupText(tables, 'メンバー', now);
+    const result = parseBackup(text);
+    expect(result.ok && result.backup.settings).toEqual({ altersTerm: 'メンバー' });
+    expect(result.ok && result.backup.exportedAt).toBe(now.toISOString());
+    expect(result.ok && result.backup.data).toEqual(emptyData());
+  });
+
+  it('呼び方が保存されていなければ「人格」として入れる', () => {
+    const result = parseBackup(buildRawBackupText(emptyData() as unknown as Record<string, unknown[]>, null, now));
+    expect(result.ok && result.backup.settings).toEqual({ altersTerm: '人格' });
   });
 });

@@ -81,6 +81,33 @@ export function backupFileName(now: Date, testSite = false): string {
   return `hitotsuyane-backup${testSite ? '-test' : ''}-${toCalendarDate(now)}.json`;
 }
 
+/**
+ * 更新前のデータ(移行前のバックアップ。SPEC.md 12章・18.4)のファイル名。日付は保存した日(実際の日付)。
+ * 例:hitotsuyane-backup-before-update-2026-10-14.json(テスト版は hitotsuyane-backup-test-before-update-…)
+ */
+export function beforeUpdateFileName(savedAt: Date, testSite = false): string {
+  return `hitotsuyane-backup${testSite ? '-test' : ''}-before-update-${toCalendarDate(savedAt)}.json`;
+}
+
+/**
+ * データベースの版を上げる前のデータ(古い形のまま)を、バックアップのファイルと同じ形の文字列にする(SPEC.md 18.4)。
+ * 古い版のテーブルをそのまま入れる(足りない項目は、読み込むときに parseBackup が古いファイルとして補う)
+ * @param tables テーブルの名前 → 中身(バックアップに入れるテーブルだけを渡す)
+ * @param altersTerm 呼び方(保存されていなければ null。「人格」として入れる)
+ */
+export function buildRawBackupText(
+  tables: Readonly<Record<string, readonly unknown[]>>,
+  altersTerm: string | null,
+  savedAt: Date,
+): string {
+  const settings: BackupSettings = { altersTerm: altersTerm ?? DEFAULT_TERM };
+  return JSON.stringify(
+    { app: APP_ID, formatVersion: BACKUP_FORMAT_VERSION, exportedAt: savedAt.toISOString(), data: tables, settings },
+    null,
+    2,
+  );
+}
+
 export type ParseBackupResult = { ok: true; backup: BackupFile } | { ok: false; reason: string };
 
 /** ファイルの中身(文字列)を読み取り、形と版番号を確かめる */

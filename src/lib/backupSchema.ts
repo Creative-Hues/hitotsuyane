@@ -1,11 +1,13 @@
 // バックアップの中身の形のチェック(SPEC.md 12章)。純粋関数。
 // ライブラリを使わず、テーブルごとに「項目名 → チェック関数」の表で確かめる。
 // 表は Record<keyof 型, …> なので、型に項目を足したら、ここも直さないとビルドが通らない。
+import { buildInitialBucketAlters } from './bucket';
 import { buildInitialMedicationTimings } from './medicationTimings';
-import { buildInitialSwitchTags } from './switchLog';
+import { buildInitialSwitchTags, guessFromAlterId } from './switchLog';
 import type {
   Alter,
   AlterCategory,
+  BucketAlter,
   BucketItem,
   ClinicNote,
   ClinicNoteCategory,
@@ -56,6 +58,7 @@ const isCycle: Check = (value) => {
     case 'daily':
     case 'weekly':
     case 'monthly':
+    case 'none':
       return true;
     case 'everyNDays':
       return Number.isSafeInteger(cycle.n) && (cycle.n ?? 0) >= 2;
@@ -196,6 +199,17 @@ const switchLogSchema: Schema<SwitchLog> = {
   switchedAt: isNullableString,
   // きっかけのID。きっかけにあるかどうかは、全体を読んだあとで確かめる(checkReferences)
   tagIds: isStringArray,
+  // 2026年10月のブラッシュアップ フェーズ2で追加。ない記録は、推測で補う(completeSwitchLogs。SPEC.md 12章)
+  // 人格にあるかどうかは、全体を読んだあとで確かめる(checkReferences)
+  fromAlterId: optional(isNullableString),
+  fromAlterSource: optional(oneOf('guessed', 'confirmed')),
+};
+
+const bucketAlterSchema: Schema<BucketAlter> = {
+  // 人格にあるかどうかは、全体を読んだあとで確かめる(checkReferences)
+  alterId: isString,
+  hidden: isBoolean,
+  addedAt: isString,
 };
 
 /** バックアップに入れるデータ(端末の設定は入れない) */
@@ -215,6 +229,8 @@ export interface BackupData {
   bucketItems: BucketItem[];
   switchTags: SwitchTag[];
   switchLogs: SwitchLog[];
+  /** バケットに出す人格(2026年10月のブラッシュアップ フェーズ2で追加。SPEC.md 9.1) */
+  bucketAlters: BucketAlter[];
 }
 
 /** テーブルごとのチェック表と、エラー表示用の名前 */
@@ -234,6 +250,8 @@ const TABLES: { [K in keyof BackupData]: { label: string; schema: Schema<BackupD
   bucketItems: { label: 'バケット', schema: bucketItemSchema },
   switchTags: { label: '交代のきっかけ', schema: switchTagSchema },
   switchLogs: { label: '交代の記録', schema: switchLogSchema },
+  // 人格のあとに読む(ないときに人格から作るため。rowsOf)
+  bucketAlters: { label: 'バケットに出す人格', schema: bucketAlterSchema },
 };
 
 /** バックアップに入れるテーブルの名前(並び順は書き出しの順) */
@@ -260,6 +278,11 @@ function pickValid<T>(value: unknown, schema: Schema<T>): T | null {
   return picked as T;
 }
 
+/** 1件の主キー(ふつうは id。「バケットに出す人格」は人格のID) */
+function rowKeyOf(item: BackupData[keyof BackupData][number]): string {
+  return 'id' in item ? item.id : item.alterId;
+}
+
 /** 1つのテーブル分をチェックする。だめなときは理由の文字列を返す */
 function parseTable<K extends keyof BackupData>(name: K, rows: unknown): BackupData[K] | string {
   const { label, schema } = TABLES[name];
@@ -273,10 +296,10 @@ function parseTable<K extends keyof BackupData>(name: K, rows: unknown): BackupD
     if (item === null) {
       return `「${label}」の${index + 1}件目の形が正しくありません`;
     }
-    if (ids.has(item.id)) {
+    if (ids.has(rowKeyOf(item))) {
       return `「${label}」に同じIDのデータが2つあります`;
     }
-    ids.add(item.id);
+    ids.add(rowKeyOf(item));
     result.push(item);
   }
   return result as BackupData[K];
@@ -316,6 +339,14 @@ function checkReferences(data: BackupData): string | null {
   if (switchLogIndex >= 0) {
     return `「交代の記録」の${switchLogIndex + 1}件目のきっかけが見つかりません`;
   }
+  const fromIndex = data.switchLogs.findIndex((log) => log.fromAlterId !== null && !alterIds.has(log.fromAlterId));
+  if (fromIndex >= 0) {
+    return `「交代の記録」の${fromIndex + 1}件目の交代前の人格が見つかりません`;
+  }
+  const bucketAlterIndex = data.bucketAlters.findIndex((entry) => !alterIds.has(entry.alterId));
+  if (bucketAlterIndex >= 0) {
+    return `「バケットに出す人格」の${bucketAlterIndex + 1}件目の人格が見つかりません`;
+  }
   return null;
 }
 
@@ -325,13 +356,23 @@ function checkReferences(data: BackupData): string | null {
  * - 受診メモのコメント(フェーズ10で追加):コメントなし
  * - 交代のきっかけ(フェーズ15で追加):最初のきっかけ。作成日時は書き出した日時
  * - 交代の記録(フェーズ15で追加):記録なし
+ * - バケットに出す人格(2026年10月のブラッシュアップ フェーズ2で追加):非表示でない人格全員(版7に上げるときと同じ)。
+ *   追加した日時は書き出した日時
  * ほかのテーブルは、ないときはそのまま(読み込まない)
+ * @param parsed ここまでに読んだテーブル(人格は「バケットに出す人格」より先に読む)
  */
-function rowsOf(name: keyof BackupData, value: Record<string, unknown>, exportedAt: string): unknown {
+function rowsOf(
+  name: keyof BackupData,
+  value: Record<string, unknown>,
+  exportedAt: string,
+  parsed: Partial<BackupData>,
+): unknown {
   if (value[name] !== undefined) {
     return value[name];
   }
   switch (name) {
+    case 'bucketAlters':
+      return buildInitialBucketAlters(parsed.alters ?? [], exportedAt);
     case 'medicationTimings':
       return buildInitialMedicationTimings(exportedAt);
     case 'clinicNoteComments':
@@ -355,11 +396,24 @@ export function parseBackupData(value: unknown, exportedAt: string): BackupData 
   }
   const data: Partial<Record<keyof BackupData, unknown>> = {};
   for (const name of BACKUP_TABLE_NAMES) {
-    const parsed = parseTable(name, rowsOf(name, value, exportedAt));
+    const parsed = parseTable(name, rowsOf(name, value, exportedAt, data as Partial<BackupData>));
     if (typeof parsed === 'string') {
       return parsed;
     }
     data[name] = parsed;
   }
-  return checkReferences(data as BackupData) ?? (data as BackupData);
+  const complete = { ...(data as BackupData), switchLogs: completeSwitchLogs(data.switchLogs as SwitchLog[]) };
+  return checkReferences(complete) ?? complete;
+}
+
+/**
+ * 交代前の人格がない記録(版6までに書き出したファイル)に、版7に上げるときと同じやり方で推測を補い、
+ * 「推測」にする(SPEC.md 12章)。交代前の人格がある記録はそのまま
+ */
+function completeSwitchLogs(logs: readonly SwitchLog[]): SwitchLog[] {
+  // 形のチェックでは、ない項目を許している(optional)。ここで必ず入れる
+  const isComplete = (log: Partial<SwitchLog>) => log.fromAlterId !== undefined && log.fromAlterSource !== undefined;
+  return logs.map((log) =>
+    isComplete(log) ? log : { ...log, fromAlterId: guessFromAlterId(logs, log), fromAlterSource: 'guessed' },
+  );
 }

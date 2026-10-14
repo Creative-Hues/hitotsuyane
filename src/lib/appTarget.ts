@@ -13,6 +13,12 @@ export const IS_TEST_SITE: boolean = __TEST_SITE__;
  */
 export const DB_NAME: string = __TEST_SITE__ ? 'hitotsuyane-test' : 'did-todo';
 
+/**
+ * 移行前のバックアップ(データベースの版を上げる前の写し。SPEC.md 18.4)を置く、別のデータベースの名前。
+ * 本番のデータベースとは別にしておくと、版上げで本番のデータベースに何か起きても、写しは残る
+ */
+export const BEFORE_UPDATE_DB_NAME: string = __TEST_SITE__ ? 'hitotsuyane-test-before-update' : 'hitotsuyane-before-update';
+
 /** localStorage などに保存するときの、キー名の頭に付ける文字(今は使っていない。使うときは storageKey を通す) */
 export const STORAGE_KEY_PREFIX: string = __TEST_SITE__ ? 'hitotsuyane-test:' : 'hitotsuyane:';
 

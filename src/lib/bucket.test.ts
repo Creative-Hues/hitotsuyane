@@ -2,18 +2,21 @@ import { describe, expect, it } from 'vitest';
 import {
   achieveConfirmMessage,
   addConfirmMessage,
+  bucketAddChoices,
+  buildInitialBucketAlters,
   deleteConfirmMessage,
   editConfirmMessage,
   helperChoices,
   isBucketItemChanged,
   normalizeHelperIds,
+  removeFromBucketMessage,
   resolveSelectedOwner,
   splitBucketItems,
   switchableAlters,
   unachieveConfirmMessage,
   validateBucketBody,
 } from './bucket';
-import type { Alter, BucketItem } from './types';
+import type { Alter, BucketAlter, BucketItem } from './types';
 
 function alterOf(id: string, order: number, hidden = false): Alter {
   return {
@@ -72,22 +75,59 @@ describe('リストの分け方(SPEC.md 9.1)', () => {
 });
 
 describe('人格の切り替え(SPEC.md 9.1)', () => {
-  const alters = [alterOf('C', 2), alterOf('A', 0), alterOf('H', 1, true), alterOf('B', 1)];
+  const alters = [alterOf('C', 2), alterOf('A', 0), alterOf('H', 1, true), alterOf('B', 1), alterOf('D', 3)];
+  // D はまだバケットに出ていない。E はもう削除した人格
+  const bucketAlters: BucketAlter[] = ['A', 'B', 'C', 'H', 'E'].map((alterId) => ({ alterId, hidden: false, addedAt: '' }));
 
-  it('非表示でない人格を並び順で出す', () => {
-    expect(switchableAlters(alters).map((alter) => alter.id)).toEqual(['A', 'B', 'C']);
+  it('バケットに出す人格のうち、非表示でない人格を並び順で出す', () => {
+    expect(switchableAlters(alters, bucketAlters).map((alter) => alter.id)).toEqual(['A', 'B', 'C']);
   });
 
-  it('選んでいた人格が出せればその人格、非表示・削除なら先頭の人格', () => {
-    expect(resolveSelectedOwner(alters, 'B')).toBe('B');
-    expect(resolveSelectedOwner(alters, null)).toBe('A');
-    expect(resolveSelectedOwner(alters, 'H')).toBe('A');
-    expect(resolveSelectedOwner(alters, 'deleted')).toBe('A');
+  it('バケットから外した人格は出さない', () => {
+    const removedB = bucketAlters.map((entry) => (entry.alterId === 'B' ? { ...entry, hidden: true } : entry));
+    expect(switchableAlters(alters, removedB).map((alter) => alter.id)).toEqual(['A', 'C']);
+    expect(resolveSelectedOwner(alters, removedB, 'B')).toBe('A');
   });
 
-  it('人格が1人もいない(非表示だけの)ときは null', () => {
-    expect(resolveSelectedOwner([], null)).toBeNull();
-    expect(resolveSelectedOwner([alterOf('H', 0, true)], 'H')).toBeNull();
+  it('選んでいた人格が出せればその人格、非表示・削除・バケットに出ていないなら先頭の人格', () => {
+    expect(resolveSelectedOwner(alters, bucketAlters, 'B')).toBe('B');
+    expect(resolveSelectedOwner(alters, bucketAlters, null)).toBe('A');
+    expect(resolveSelectedOwner(alters, bucketAlters, 'H')).toBe('A');
+    expect(resolveSelectedOwner(alters, bucketAlters, 'deleted')).toBe('A');
+    expect(resolveSelectedOwner(alters, bucketAlters, 'D')).toBe('A');
+  });
+
+  it('出せる人格が1人もいないときは null', () => {
+    expect(resolveSelectedOwner([], [], null)).toBeNull();
+    expect(resolveSelectedOwner(alters, [], null)).toBeNull();
+    expect(resolveSelectedOwner([alterOf('H', 0, true)], bucketAlters, 'H')).toBeNull();
+  });
+});
+
+describe('バケットに出す人格(SPEC.md 9.1)', () => {
+  const alters = [alterOf('C', 2), alterOf('A', 0), alterOf('H', 1, true), alterOf('B', 1), alterOf('D', 3)];
+
+  it('最初の中身は、非表示でない人格全員(版7に上げるとき・古いバックアップ)', () => {
+    expect(buildInitialBucketAlters(alters, 'at')).toEqual(
+      ['C', 'A', 'B', 'D'].map((alterId) => ({ alterId, hidden: false, addedAt: 'at' })),
+    );
+  });
+
+  it('「+」の一覧は、まだ出ていない人格と、外した人格に分けて並び順で出す(非表示の人格は出さない)', () => {
+    const bucketAlters: BucketAlter[] = [
+      { alterId: 'A', hidden: false, addedAt: '' },
+      { alterId: 'C', hidden: true, addedAt: '' },
+      { alterId: 'H', hidden: true, addedAt: '' },
+    ];
+    const choices = bucketAddChoices(alters, bucketAlters);
+    expect(choices.notAdded.map((alter) => alter.id)).toEqual(['B', 'D']);
+    expect(choices.removed.map((alter) => alter.id)).toEqual(['C']);
+  });
+
+  it('外すときの確認文', () => {
+    expect(removeFromBucketMessage('人格A')).toBe(
+      '人格Aをバケットから外しますか?リストの項目は消えず、「+」からまた出せます。',
+    );
   });
 });
 

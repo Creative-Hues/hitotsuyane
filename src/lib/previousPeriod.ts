@@ -104,6 +104,10 @@ export function getPreviousPeriodResult(
   if (task.cycle.type === 'everyNDays') {
     return judgeEveryNDays(task.cycle.n, records, now);
   }
+  // 期限なしは期間がないので、前の期間の結果を出さない(SPEC.md 6.5)
+  if (task.cycle.type === 'none') {
+    return { kind: 'none' };
+  }
   return judgeByPeriod(task.cycle.type, task.createdAt, records, now);
 }
 
@@ -119,6 +123,8 @@ const PREFIXES: Record<Cycle['type'], string> = {
   weekly: '先週',
   monthly: '先月',
   everyNDays: '前回',
+  // 期限なしは前の期間の結果を出さない(使わない)
+  none: '',
 };
 
 /** 時刻の出し方:昨日は時刻、先週は曜日と時刻、先月・前回は月日(どれも実際の日時) */
@@ -130,6 +136,7 @@ function formatRecordTime(cycleType: Cycle['type'], completedAt: string): string
       return formatWeekdayClock(completedAt);
     case 'monthly':
     case 'everyNDays':
+    case 'none':
       return formatMonthDay(completedAt);
   }
 }

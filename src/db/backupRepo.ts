@@ -21,6 +21,7 @@ function backupTables(database: AppDatabase) {
     database.bucketItems,
     database.switchTags,
     database.switchLogs,
+    database.bucketAlters,
   ];
 }
 
@@ -42,6 +43,7 @@ export async function readAllData(database: AppDatabase): Promise<BackupData> {
     bucketItems: await database.bucketItems.toArray(),
     switchTags: await database.switchTags.toArray(),
     switchLogs: await database.switchLogs.toArray(),
+    bucketAlters: await database.bucketAlters.toArray(),
   }));
 }
 
@@ -77,6 +79,7 @@ export async function replaceAllData(database: AppDatabase, data: BackupData, se
     await database.bucketItems.bulkAdd(data.bucketItems);
     await database.switchTags.bulkAdd(data.switchTags);
     await database.switchLogs.bulkAdd(data.switchLogs);
+    await database.bucketAlters.bulkAdd(data.bucketAlters);
   });
 }
 

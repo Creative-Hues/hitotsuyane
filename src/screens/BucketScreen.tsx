@@ -42,6 +42,7 @@ export function BucketScreen({ tabHeader }: Props) {
   const { t } = useTerm();
   const alters = useLiveQuery(() => db.alters.toArray());
   const items = useLiveQuery(() => db.bucketItems.toArray());
+  const bucketAlters = useLiveQuery(() => db.bucketAlters.toArray());
   // 選んだ人格のID(まだ選んでいなければ null。表示するのは resolveSelectedOwner で決めた人格)
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<View>({ kind: 'list' });
@@ -60,7 +61,7 @@ export function BucketScreen({ tabHeader }: Props) {
   };
   const backToList = () => setView({ kind: 'list' });
 
-  if (!alters || !items) {
+  if (!alters || !items || !bucketAlters) {
     return (
       <main className="app">
         {tabHeader}
@@ -110,7 +111,7 @@ export function BucketScreen({ tabHeader }: Props) {
     }
   }
 
-  const ownerId = resolveSelectedOwner(alters, selectedId);
+  const ownerId = resolveSelectedOwner(alters, bucketAlters, selectedId);
   const owner = ownerId === null ? undefined : alterById.get(ownerId);
 
   if (!owner) {
@@ -225,7 +226,7 @@ export function BucketScreen({ tabHeader }: Props) {
           </button>
         </div>
       )}
-      <AlterSwitcher alters={switchableAlters(alters)} selectedId={owner.id} onSelect={handleSelectOwner} />
+      <AlterSwitcher alters={switchableAlters(alters, bucketAlters)} selectedId={owner.id} onSelect={handleSelectOwner} />
       {!selecting && (
         <button
           type="button"

@@ -2,7 +2,7 @@
 // 日付の計算は period.ts の関数を通す
 import { UNKNOWN_ALTER_NAME } from './completionLabel';
 import { DAY_START_HOUR, toLogicalDate, toLogicalMonth, type LogicalDate } from './period';
-import type { Alter, SwitchLog, SwitchTag } from './types';
+import type { Alter, SwitchLog, SwitchLogV6, SwitchTag } from './types';
 import { isDuplicateName } from './validation';
 
 /**
@@ -43,6 +43,74 @@ export function isDuplicateTagName(name: string, tags: readonly SwitchTag[], exc
  */
 export function switchLogTime(log: Pick<SwitchLog, 'noticedAt' | 'switchedAt'>): string {
   return log.switchedAt ?? log.noticedAt;
+}
+
+/** 前後を比べるのに使う項目 */
+type SwitchLogOrderKey = Pick<SwitchLog, 'id' | 'noticedAt' | 'switchedAt'>;
+
+/**
+ * 記録の前後(SPEC.md 17.3)。記録の時刻の古い順、同じなら気づいた時刻の古い順、それも同じなら ID の順。
+ * 日時は toISOString() 形式なので、文字列の大小で前後を比べられる
+ */
+export function compareSwitchLogs(a: SwitchLogOrderKey, b: SwitchLogOrderKey): number {
+  return (
+    switchLogTime(a).localeCompare(switchLogTime(b)) ||
+    a.noticedAt.localeCompare(b.noticedAt) ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
+}
+
+/**
+ * 交代前の人格を推測する(SPEC.md 17.3)。
+ * target より前で、いちばん新しい記録の「交代した人格」。前の記録がなければ null(わからない)。
+ * target 自身(同じ ID の記録)は数えない。
+ * 期間で区切らずに使えるので、フェーズ3の受診前のまとめでも使う
+ */
+export function guessFromAlterId(
+  logs: readonly Pick<SwitchLog, 'id' | 'noticedAt' | 'switchedAt' | 'alterId'>[],
+  target: SwitchLogOrderKey,
+): string | null {
+  let previous: (typeof logs)[number] | null = null;
+  for (const log of logs) {
+    if (log.id === target.id || compareSwitchLogs(log, target) >= 0) {
+      continue;
+    }
+    if (previous === null || compareSwitchLogs(log, previous) > 0) {
+      previous = log;
+    }
+  }
+  return previous?.alterId ?? null;
+}
+
+/**
+ * 「推測」の記録の交代前の人格を計算し直す(SPEC.md 17.3)。
+ * 変わる記録だけを { id, fromAlterId } で返す。「確認した」記録は変えない
+ */
+export function recomputeGuessedFromAlters(
+  logs: readonly SwitchLog[],
+): { id: string; fromAlterId: string | null }[] {
+  const sorted = [...logs].sort(compareSwitchLogs);
+  const changes: { id: string; fromAlterId: string | null }[] = [];
+  sorted.forEach((log, index) => {
+    if (log.fromAlterSource !== 'guessed') {
+      return;
+    }
+    const guessed = index === 0 ? null : sorted[index - 1].alterId;
+    if (guessed !== log.fromAlterId) {
+      changes.push({ id: log.id, fromAlterId: guessed });
+    }
+  });
+  return changes;
+}
+
+/**
+ * 版6までの記録に、交代前の人格を推測で補う(データベースの版上げ・古いバックアップの読み込み。SPEC.md 3.5・12章)。
+ * 渡した順のまま返し、すべて「推測」にする
+ */
+export function fillFromAlters(logs: readonly SwitchLogV6[]): SwitchLog[] {
+  const sorted = [...logs].sort(compareSwitchLogs);
+  const fromById = new Map(sorted.map((log, index) => [log.id, index === 0 ? null : sorted[index - 1].alterId]));
+  return logs.map((log) => ({ ...log, fromAlterId: fromById.get(log.id) ?? null, fromAlterSource: 'guessed' }));
 }
 
 /** 「どれくらい前から自分?」の答え(SPEC.md 17.1) */

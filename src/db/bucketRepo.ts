@@ -5,6 +5,24 @@ import { normalizeHelperIds } from '../lib/bucket';
 import { nextOrder, reorderSubset } from '../lib/ordering';
 import type { BucketItem } from '../lib/types';
 
+/**
+ * 人格をバケットに出す(「+」から選んだとき。SPEC.md 9.1)。
+ * 前に外した人格なら再表示する(追加した日時はそのまま。リストの項目もそのまま戻る)
+ */
+export async function showAlterInBucket(database: AppDatabase, alterId: string, now: Date): Promise<void> {
+  await database.transaction('rw', database.bucketAlters, async () => {
+    const entry = await database.bucketAlters.get(alterId);
+    await database.bucketAlters.put(
+      entry ? { ...entry, hidden: false } : { alterId, hidden: false, addedAt: now.toISOString() },
+    );
+  });
+}
+
+/** 人格をバケットから外す(SPEC.md 9.1)。消さずに印を付けるだけなので、リストの項目は変わらない */
+export async function hideAlterFromBucket(database: AppDatabase, alterId: string): Promise<void> {
+  await database.bucketAlters.update(alterId, { hidden: true });
+}
+
 /** 項目をその人格のリストの「まだ」に追加し、追加した項目を返す(内容はチェック済みのもの) */
 export async function addBucketItem(
   database: AppDatabase,

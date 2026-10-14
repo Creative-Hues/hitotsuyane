@@ -3,6 +3,10 @@ import {
   buildInitialSwitchTags,
   buildSwitchStats,
   clampSwitchMonth,
+  compareSwitchLogs,
+  fillFromAlters,
+  guessFromAlterId,
+  recomputeGuessedFromAlters,
   groupSwitchLogsByDay,
   resolveSwitchedAt,
   switchLogsInMonth,
@@ -36,7 +40,15 @@ const tags: SwitchTag[] = [
 
 /** 端末のローカル時刻で記録を作る(交代した時刻 = 気づいた時刻) */
 function log(id: string, alterId: string | null, at: Date, tagIds: string[] = []): SwitchLog {
-  return { id, alterId, noticedAt: at.toISOString(), switchedAt: at.toISOString(), tagIds };
+  return {
+    id,
+    alterId,
+    noticedAt: at.toISOString(),
+    switchedAt: at.toISOString(),
+    tagIds,
+    fromAlterId: null,
+    fromAlterSource: 'guessed',
+  };
 }
 
 describe('記録の時刻(SPEC.md 17.3)', () => {
@@ -96,6 +108,8 @@ describe('月の振り分けと範囲(SPEC.md 17.4)', () => {
       noticedAt: new Date(2026, 9, 1, 6, 0).toISOString(),
       switchedAt: null,
       tagIds: [],
+      fromAlterId: null,
+      fromAlterSource: 'guessed',
     };
     expect(switchLogsInMonth([unknown], '2026-10').map((l) => l.id)).toEqual(['u']);
   });
@@ -218,5 +232,79 @@ describe('1か月分の集計(SPEC.md 17.5)', () => {
   it('記録がない月は、どの欄も空', () => {
     const stats = buildSwitchStats({ logs: [], month: '2026-10', alters, tags });
     expect(stats).toEqual({ total: 0, byAlter: [], byTime: [], byTag: [] });
+  });
+});
+
+describe('交代前の人格の推測(SPEC.md 17.3)', () => {
+  /** 記録の時刻(交代した時刻)と気づいた時刻を別に指定して作る */
+  function logAt(id: string, alterId: string | null, switchedAt: Date | null, noticedAt: Date): SwitchLog {
+    return {
+      id,
+      alterId,
+      noticedAt: noticedAt.toISOString(),
+      switchedAt: switchedAt?.toISOString() ?? null,
+      tagIds: [],
+      fromAlterId: null,
+      fromAlterSource: 'guessed',
+    };
+  }
+  const t = (hour: number, minute = 0) => new Date(2026, 9, 2, hour, minute);
+
+  it('前の記録がなければ「わからない」、あれば、いちばん新しい前の記録の人格', () => {
+    const logs = [logAt('a', 'A', t(9), t(9)), logAt('b', 'B', t(11), t(11))];
+    expect(guessFromAlterId(logs, logAt('new', 'C', t(8), t(12)))).toBeNull();
+    expect(guessFromAlterId(logs, logAt('new', 'C', t(10), t(12)))).toBe('A');
+    expect(guessFromAlterId(logs, logAt('new', 'C', t(12), t(12)))).toBe('B');
+  });
+
+  it('前の記録が「わからない」なら「わからない」。自分自身は数えない', () => {
+    const logs = [logAt('a', null, t(9), t(9)), logAt('b', 'B', t(11), t(11))];
+    expect(guessFromAlterId(logs, logAt('new', 'C', t(10), t(12)))).toBeNull();
+    expect(guessFromAlterId(logs, logs[1])).toBeNull();
+  });
+
+  it('時刻を指定した記録は、交代した時刻で並ぶ。時刻がわからない記録は気づいた時刻で並ぶ', () => {
+    // 気づいたのは12時でも、交代したのは8時
+    const early = logAt('early', 'A', t(8), t(12));
+    // 交代した時刻がわからず、気づいたのは10時
+    const unknown = logAt('unknown', 'B', null, t(10));
+    const logs = [early, unknown];
+    expect(guessFromAlterId(logs, logAt('new', 'C', t(9), t(13)))).toBe('A');
+    expect(guessFromAlterId(logs, logAt('new', 'C', t(11), t(13)))).toBe('B');
+  });
+
+  it('記録の時刻が同じなら、気づいた時刻の順、それも同じなら ID の順', () => {
+    const a = logAt('a', 'A', t(9), t(9, 30));
+    const b = logAt('b', 'B', t(9), t(9, 10));
+    expect(compareSwitchLogs(b, a)).toBeLessThan(0);
+    const c = logAt('c', 'C', t(9), t(9, 10));
+    expect(compareSwitchLogs(b, c)).toBeLessThan(0);
+    expect(guessFromAlterId([a, b, c], a)).toBe('C');
+  });
+
+  it('計算し直しは「推測」の記録だけを変え、変わる記録だけを返す', () => {
+    const logs: SwitchLog[] = [
+      { ...logAt('a', 'A', t(9), t(9)), fromAlterId: 'X' },
+      { ...logAt('b', 'B', t(10), t(10)), fromAlterId: 'A' },
+      { ...logAt('c', 'C', t(11), t(11)), fromAlterId: null, fromAlterSource: 'confirmed' },
+      { ...logAt('d', 'D', t(12), t(12)), fromAlterId: 'B' },
+    ];
+    expect(recomputeGuessedFromAlters(logs)).toEqual([
+      { id: 'a', fromAlterId: null },
+      { id: 'd', fromAlterId: 'C' },
+    ]);
+  });
+
+  it('版6までの記録には、時刻順に推測を補い、渡した順のまま返す', () => {
+    const v6 = [
+      { id: 'b', alterId: 'B', noticedAt: t(10).toISOString(), switchedAt: t(10).toISOString(), tagIds: [] },
+      { id: 'a', alterId: null, noticedAt: t(9).toISOString(), switchedAt: null, tagIds: [] },
+      { id: 'c', alterId: 'C', noticedAt: t(11).toISOString(), switchedAt: t(11).toISOString(), tagIds: [] },
+    ];
+    expect(fillFromAlters(v6).map((log) => [log.id, log.fromAlterId, log.fromAlterSource])).toEqual([
+      ['b', null, 'guessed'],
+      ['a', null, 'guessed'],
+      ['c', 'B', 'guessed'],
+    ]);
   });
 });

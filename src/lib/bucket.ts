@@ -1,7 +1,7 @@
 // バケット(SPEC.md 9章)。すべて純粋関数(同じ入力なら同じ結果)。
 // バケットは「その人格の願い」なので、項目を変える操作はどれも本人確認の文を出す
 import type { FormResult } from './clinicNotes';
-import type { Alter, BucketItem } from './types';
+import type { Alter, BucketAlter, BucketItem } from './types';
 import { DEFAULT_TERM, withTerm } from './term';
 
 function byOrder(a: { order: number }, b: { order: number }): number {
@@ -29,18 +29,59 @@ export function splitBucketItems(
 }
 
 /**
- * 画面上部の人格の切り替えに出す人格(SPEC.md 9.1)。非表示でない人格を並び順で
+ * 「バケットに出す人格」の最初の中身(SPEC.md 3.5・9.1・12章)。
+ * データベースの版7に上げるときと、「バケットに出す人格」のない古いバックアップを読み込むときに使う。
+ * 今バケットに出ている人格(非表示でない人格)全員を入れ、見た目を変えない
  */
-export function switchableAlters(alters: readonly Alter[]): Alter[] {
-  return alters.filter((alter) => !alter.hidden).sort(byOrder);
+export function buildInitialBucketAlters(
+  alters: readonly Pick<Alter, 'id' | 'hidden'>[],
+  addedAt: string,
+): BucketAlter[] {
+  return alters.filter((alter) => !alter.hidden).map((alter) => ({ alterId: alter.id, hidden: false, addedAt }));
 }
 
 /**
- * 表示するリストの人格のID。選んでいた人格が非表示・削除になったら先頭の人格に戻す。
- * 人格が1人もいなければ null
+ * 画面上部の人格の切り替えに出す人格(SPEC.md 9.1)。
+ * 「バケットに出す人格」に入っていて外していない、非表示でない人格を並び順で
  */
-export function resolveSelectedOwner(alters: readonly Alter[], selectedId: string | null): string | null {
-  const candidates = switchableAlters(alters);
+export function switchableAlters(alters: readonly Alter[], bucketAlters: readonly BucketAlter[]): Alter[] {
+  const shown = new Set(bucketAlters.filter((entry) => !entry.hidden).map((entry) => entry.alterId));
+  return alters.filter((alter) => !alter.hidden && shown.has(alter.id)).sort(byOrder);
+}
+
+/** 「+」で出す一覧(SPEC.md 9.1) */
+export interface BucketAddChoices {
+  /** まだバケットに出ていない人格(並び順) */
+  notAdded: Alter[];
+  /** 前にバケットから外した人格(並び順。選ぶと再表示する) */
+  removed: Alter[];
+}
+
+/** 「+」で出す一覧を作る。どちらも、非表示でない人格だけ */
+export function bucketAddChoices(alters: readonly Alter[], bucketAlters: readonly BucketAlter[]): BucketAddChoices {
+  const entryById = new Map(bucketAlters.map((entry) => [entry.alterId, entry]));
+  const visible = alters.filter((alter) => !alter.hidden).sort(byOrder);
+  return {
+    notAdded: visible.filter((alter) => !entryById.has(alter.id)),
+    removed: visible.filter((alter) => entryById.get(alter.id)?.hidden === true),
+  };
+}
+
+/** バケットから外すときの確認文(SPEC.md 9.1。本人確認ではない、ふつうの確認) */
+export function removeFromBucketMessage(ownerName: string): string {
+  return `${ownerName}をバケットから外しますか?リストの項目は消えず、「+」からまた出せます。`;
+}
+
+/**
+ * 表示するリストの人格のID。選んでいた人格が非表示・削除・バケットから外す、になったら先頭の人格に戻す。
+ * 出せる人格が1人もいなければ null
+ */
+export function resolveSelectedOwner(
+  alters: readonly Alter[],
+  bucketAlters: readonly BucketAlter[],
+  selectedId: string | null,
+): string | null {
+  const candidates = switchableAlters(alters, bucketAlters);
   return candidates.find((alter) => alter.id === selectedId)?.id ?? candidates[0]?.id ?? null;
 }
 

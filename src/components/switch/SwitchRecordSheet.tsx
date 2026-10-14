@@ -55,7 +55,7 @@ export function SwitchRecordSheet({ noticedAt, onRecorded, onCancel }: Props) {
     }
     setSaving(true);
     try {
-      await addSwitchLog(db, { alterId, switchedAt, tagIds }, noticedAt);
+      await addSwitchLog(db, { alterId, switchedAt, tagIds }, { kind: 'guess' }, noticedAt);
       onRecorded();
     } catch (error) {
       setSaving(false);

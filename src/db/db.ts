@@ -4,6 +4,7 @@ import type {
   Alter,
   AlterCategory,
   AppMeta,
+  BucketAlter,
   BucketItem,
   ClinicNote,
   ClinicNoteCategory,
@@ -15,11 +16,13 @@ import type {
   ProfileSection,
   StockLog,
   SwitchLog,
+  SwitchLogV6,
   SwitchTag,
   Task,
 } from '../lib/types';
+import { buildInitialBucketAlters } from '../lib/bucket';
 import { buildInitialMedicationTimings } from '../lib/medicationTimings';
-import { buildInitialSwitchTags } from '../lib/switchLog';
+import { buildInitialSwitchTags, fillFromAlters } from '../lib/switchLog';
 import {
   buildInitialCategories,
   buildInitialClinicNoteCategories,
@@ -46,6 +49,7 @@ export class AppDatabase extends Dexie {
   bucketItems!: EntityTable<BucketItem, 'id'>;
   switchTags!: EntityTable<SwitchTag, 'id'>;
   switchLogs!: EntityTable<SwitchLog, 'id'>;
+  bucketAlters!: EntityTable<BucketAlter, 'alterId'>;
   meta!: EntityTable<AppMeta, 'key'>;
 
   // データベースの名前は src/lib/appTarget.ts で決める(SPEC.md 19章・21章)。
@@ -98,7 +102,15 @@ export class AppDatabase extends Dexie {
     this.version(6)
       .stores({ switchTags: 'id, order', switchLogs: 'id, alterId, noticedAt' })
       .upgrade((tx) => addInitialSwitchTags(tx, new Date()));
-    // 新しく入れたとき(版1〜6の upgrade を通らない)の最初のデータ
+    // 版7:SPEC.md 3.5(2026年10月のブラッシュアップ フェーズ2)。
+    // 版を上げる前に、移行前のバックアップ(SPEC.md 18.4)を beforeUpdate.ts で保存してから開く。
+    // - 周期の「期限なし」は項目を足すだけなので、今のタスクは書き換えない
+    // - 「バケットに出す人格」のテーブルを足し、今バケットに出ている人格(非表示でない人格)全員を入れる
+    // - 交代の記録に、交代前の人格を推測で補う(すべて「推測」)
+    this.version(7)
+      .stores({ bucketAlters: 'alterId' })
+      .upgrade((tx) => upgradeToV7(tx, new Date()));
+    // 新しく入れたとき(版1〜7の upgrade を通らない)の最初のデータ
     // 区分は空で始め、受診メモの分類は呼び方を使わない名前にする(SPEC.md 14章③)
     this.on('populate', async (tx) => {
       const now = new Date();
@@ -110,6 +122,16 @@ export class AppDatabase extends Dexie {
       await addInitialSwitchTags(tx, now);
     });
   }
+}
+
+/** 版7に上げるときの変換(SPEC.md 3.5)。「バケットに出す人格」を入れ、交代の記録に交代前の人格を補う */
+async function upgradeToV7(tx: Transaction, now: Date): Promise<void> {
+  const alters = await tx.table<Alter, string>('alters').toArray();
+  await tx
+    .table<BucketAlter, string>('bucketAlters')
+    .bulkAdd(buildInitialBucketAlters(alters, now.toISOString()));
+  const filled = fillFromAlters(await tx.table<SwitchLogV6, string>('switchLogs').toArray());
+  await tx.table<SwitchLog, string>('switchLogs').bulkPut(filled);
 }
 
 /** 最初の区分と、受診メモの分類を入れる */

@@ -75,6 +75,8 @@ export async function reorderAlters(database: AppDatabase, orderedIds: readonly 
 /**
  * その人格の完了記録・服薬記録・受診メモ・コメント・バケット・交代の記録の件数の合計(SPEC.md 3.1)。
  * バケットは、その人格のリストの項目(削除済みも含む)と、協力者に入っている項目を数える。
+ * 「バケットに出す人格」に入っているだけなら数えない。
+ * 交代の記録は、交代した人格と、交代前の人格の両方を数える。
  * 全件を見て数える(記録は1年分だけ、メモ・コメント・バケットも多くはならないため)
  */
 export async function countAlterRecords(database: AppDatabase, id: string): Promise<number> {
@@ -84,7 +86,7 @@ export async function countAlterRecords(database: AppDatabase, id: string): Prom
     database.clinicNotes.filter((note) => note.alterId === id).count(),
     database.clinicNoteComments.filter((comment) => comment.alterId === id).count(),
     database.bucketItems.filter((item) => item.alterId === id || item.helperAlterIds.includes(id)).count(),
-    database.switchLogs.where('alterId').equals(id).count(),
+    database.switchLogs.filter((log) => log.alterId === id || log.fromAlterId === id).count(),
   ]);
   return counts.reduce((sum, count) => sum + count, 0);
 }
@@ -99,7 +101,7 @@ export async function countFilledProfileSections(database: AppDatabase, id: stri
 }
 
 /**
- * 人格を削除し、すべてのタスクの「気にしている人格」からも外す。その人格の見出しも消す。
+ * 人格を削除し、すべてのタスクの「気にしている人格」と「バケットに出す人格」からも外す。その人格の見出しも消す。
  * 完了記録・服薬記録・受診メモ・コメント・バケット・交代の記録のどれかが1件でもある人格は削除せず false を返す
  * (削除したら true。SPEC.md 3.1)
  */
@@ -114,6 +116,7 @@ export async function deleteAlter(database: AppDatabase, id: string): Promise<bo
     database.bucketItems,
     database.switchLogs,
     database.profileSections,
+    database.bucketAlters,
   ];
   return database.transaction('rw', tables, async () => {
     if ((await countAlterRecords(database, id)) > 0) {
@@ -121,6 +124,7 @@ export async function deleteAlter(database: AppDatabase, id: string): Promise<bo
     }
     await database.alters.delete(id);
     await database.profileSections.where('alterId').equals(id).delete();
+    await database.bucketAlters.delete(id);
     const tasks = await database.tasks.filter((task) => task.careAlterIds.includes(id)).toArray();
     for (const task of tasks) {
       await database.tasks.update(task.id, {

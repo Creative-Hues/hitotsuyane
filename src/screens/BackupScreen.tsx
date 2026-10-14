@@ -1,9 +1,10 @@
-// バックアップ画面(SPEC.md 12章):書き出し・読み込み・最後に書き出した日時
+// バックアップ画面(SPEC.md 12章):書き出し・読み込み・最後に書き出した日時・更新前のデータ(18.4)
 import { useRef, useState, type ChangeEvent } from 'react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { db } from '../db/db';
 import { getLastExportedAt, readAllData, readBackupSettings, replaceAllData, setLastExportedAt } from '../db/backupRepo';
 import { useLiveQuery } from '../hooks/useLiveQuery';
+import { useBeforeUpdateSnapshot } from '../hooks/useBeforeUpdateSnapshot';
 import { useNow } from '../hooks/useNow';
 import { useTerm } from '../hooks/useTerm';
 import {
@@ -16,7 +17,7 @@ import {
 } from '../lib/backup';
 import { IS_TEST_SITE } from '../lib/appTarget';
 import { browserSaveDeps, saveFile } from '../lib/saveFile';
-import { formatDateTime } from '../lib/timeFormat';
+import { formatDateTime, formatMonthDayKanji } from '../lib/timeFormat';
 
 interface Props {
   onBack: () => void;
@@ -36,6 +37,20 @@ export function BackupScreen({ onBack }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<BackupFile | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
+  const { snapshot, exportSnapshot } = useBeforeUpdateSnapshot();
+
+  /** 更新前のデータを書き出す。今のデータの書き出しではないので、最後に書き出した日時は変えない(SPEC.md 12章) */
+  const handleExportSnapshot = async () => {
+    setNotice(null);
+    try {
+      if ((await exportSnapshot()) !== 'cancelled') {
+        setNotice({ kind: 'success', text: '更新前のデータを書き出しました' });
+      }
+    } catch (error) {
+      console.error('更新前のデータの書き出しに失敗しました', error);
+      setNotice({ kind: 'error', text: '書き出しに失敗しました。もう一度お試しください。' });
+    }
+  };
 
   const handleExport = async () => {
     if (!currentData || !currentSettings) {
@@ -134,6 +149,18 @@ export function BackupScreen({ onBack }: Props) {
           onChange={handleFileChosen}
         />
       </section>
+
+      {snapshot && (
+        <section className="settings-section">
+          <h2>更新前のデータ({formatMonthDayKanji(snapshot.savedAt)})</h2>
+          <p className="backup-text">
+            アプリを更新してデータの形が変わる前に、端末の中に保存しておいたデータです。書き出したファイルは、ふつうのバックアップと同じように読み込めます。
+          </p>
+          <button type="button" className="add-button" onClick={handleExportSnapshot}>
+            書き出す
+          </button>
+        </section>
+      )}
 
       {notice && (
         <p className={notice.kind === 'error' ? 'form-error' : 'backup-success'} role="status">

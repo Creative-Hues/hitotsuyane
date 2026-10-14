@@ -147,19 +147,38 @@ function fullData(): BackupData {
         noticedAt: '2026-09-27T12:00:00.000Z',
         switchedAt: '2026-09-27T11:30:00.000Z',
         tagIds: ['switch-tag-sound', 'tag-custom'],
+        fromAlterId: null,
+        fromAlterSource: 'guessed',
       },
-      { id: 'sw2', alterId: null, noticedAt: '2026-09-28T01:00:00.000Z', switchedAt: null, tagIds: [] },
+      {
+        id: 'sw2',
+        alterId: null,
+        noticedAt: '2026-09-28T01:00:00.000Z',
+        switchedAt: null,
+        tagIds: [],
+        fromAlterId: 'alter-a',
+        fromAlterSource: 'confirmed',
+      },
+    ],
+    bucketAlters: [
+      { alterId: 'alter-a', hidden: false, addedAt: createdAt },
+      { alterId: 'alter-b', hidden: true, addedAt: createdAt },
     ],
   };
 }
 
-/** 比べやすいように、各テーブルを id 順に並べる */
+/** 1件の主キー(ふつうは id。「バケットに出す人格」は人格のID) */
+function keyOf(row: BackupData[keyof BackupData][number]): string {
+  return 'id' in row ? row.id : row.alterId;
+}
+
+/** 比べやすいように、各テーブルを主キーの順に並べる */
 function sortById(data: BackupData): BackupData {
-  const sorted = { ...data };
+  const sorted: Record<string, unknown[]> = { ...data };
   for (const name of BACKUP_TABLE_NAMES) {
-    (sorted[name] as { id: string }[]) = [...data[name]].sort((a, b) => a.id.localeCompare(b.id));
+    sorted[name] = [...data[name]].sort((a, b) => keyOf(a).localeCompare(keyOf(b)));
   }
-  return sorted;
+  return sorted as unknown as BackupData;
 }
 
 describe('バックアップの書き出しと読み込み', () => {

@@ -106,3 +106,40 @@ describe('ホーム画面の欄', () => {
     expect(today.items.map((i) => [i.task.id, i.status])).toEqual([['daily', 'todo']]);
   });
 });
+
+describe('期限なしの欄(SPEC.md 6.1)', () => {
+  const none: Cycle = { type: 'none' };
+
+  it('一番上に出て、未完了は order 順、完了は完了した日時の新しい順。前の期間は出さない', () => {
+    const tasks = [
+      task('daily', { type: 'daily' }, 0),
+      task('n1', none, 1),
+      task('n2', none, 2),
+      task('n3', none, 3),
+      task('n4', none, 4),
+      task('hidden', none, 5, true),
+    ];
+    const records = [record('n1', at(9, 1, 9)), record('n3', at(9, 20, 9))];
+    const [first, second] = buildHomeSections(tasks, records, now);
+    expect(first.key).toBe('none');
+    expect(first.title).toBe('期限なし');
+    expect(first.items.map((i) => [i.task.id, i.status])).toEqual([
+      ['n2', 'todo'],
+      ['n4', 'todo'],
+      ['n3', 'done'],
+      ['n1', 'done'],
+    ]);
+    expect(first.items.every((i) => i.previous.kind === 'none')).toBe(true);
+    expect(second.key).toBe('today');
+  });
+
+  it('期限なしのタスクがなければ、欄を出さない', () => {
+    expect(buildHomeSections([task('daily', { type: 'daily' }, 0)], [], now).map((s) => s.key)).toEqual(['today']);
+  });
+
+  it('並び替えモードでは、未完了だけを並べる', () => {
+    const tasks = [task('n1', none, 1), task('n2', none, 0)];
+    const [section] = buildHomeSections(tasks, [record('n1', at(9, 1))], now);
+    expect(sortSectionByOrder(section).items.map((i) => i.task.id)).toEqual(['n2']);
+  });
+});

@@ -27,6 +27,12 @@ export function formatMonthDay(iso: string): string {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+/** 「10月14日」形式(実際の月日。SPEC.md 12章「更新前のデータ」) */
+export function formatMonthDayKanji(iso: string): string {
+  const date = new Date(iso);
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 /** 「2026/9/28 21:30」形式(実際の日時) */
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);
@@ -55,6 +61,7 @@ export function formatElapsed(fromIso: string, now: Date): string {
  * - 今日:「9:12」
  * - 今週:「水 9:12」
  * - 今月:「9/3 9:12」
+ * - 期限なし:「10/14 9:12」(SPEC.md 6.1)
  * @param completedAt 完了日時(ISO形式)
  */
 export function formatCompletionTime(completedAt: string, section: SectionKey): string {
@@ -64,6 +71,7 @@ export function formatCompletionTime(completedAt: string, section: SectionKey): 
     case 'week':
       return formatWeekdayClock(completedAt);
     case 'month':
+    case 'none':
       return `${formatMonthDay(completedAt)} ${formatClockOf(completedAt)}`;
   }
 }

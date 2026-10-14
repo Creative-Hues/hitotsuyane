@@ -3,8 +3,8 @@ import { getPreviousPeriodResult, type PreviousPeriodResult } from './previousPe
 import { getTaskStatus, type TaskStatus } from './status';
 import type { CompletionRecord, Cycle, Task } from './types';
 
-/** 欄の種類:今日 / 今週 / 今月 */
-export type SectionKey = 'today' | 'week' | 'month';
+/** 欄の種類:期限なし / 今日 / 今週 / 今月 */
+export type SectionKey = 'none' | 'today' | 'week' | 'month';
 
 /** ホーム画面に並べるタスク1件 */
 export interface HomeItem {
@@ -24,12 +24,13 @@ export interface HomeSection {
 }
 
 const SECTION_TITLES: Record<SectionKey, string> = {
+  none: '期限なし',
   today: '今日',
   week: '今週',
   month: '今月',
 };
 
-const SECTION_ORDER: readonly SectionKey[] = ['today', 'week', 'month'];
+const SECTION_ORDER: readonly SectionKey[] = ['none', 'today', 'week', 'month'];
 
 /** 周期からどの欄に入るかを決める */
 function sectionOf(cycle: Cycle): SectionKey {
@@ -41,6 +42,8 @@ function sectionOf(cycle: Cycle): SectionKey {
       return 'week';
     case 'monthly':
       return 'month';
+    case 'none':
+      return 'none';
   }
 }
 
@@ -52,11 +55,34 @@ function compareItems(a: HomeItem, b: HomeItem): number {
   return a.task.order - b.task.order;
 }
 
+/** 完了した日時(完了していなければ空) */
+function completedAtOf(item: HomeItem): string {
+  return item.currentRecord?.completedAt ?? '';
+}
+
+/**
+ * 期限なしの欄:未完了を上(order 順)、完了を下(完了した日時の新しい順。SPEC.md 6.1)。
+ * 同じ日時なら order 順
+ */
+function compareNoDeadlineItems(a: HomeItem, b: HomeItem): number {
+  if (a.status !== b.status) {
+    return a.status === 'todo' ? -1 : 1;
+  }
+  if (a.status === 'done') {
+    return completedAtOf(b).localeCompare(completedAtOf(a)) || a.task.order - b.task.order;
+  }
+  return a.task.order - b.task.order;
+}
+
 /**
  * 並び替えモード用に、欄の中を未完了・完了の区別なく order 順だけで並べ直す(SPEC.md 6.1)。
  * 欄に入るタスクは buildHomeSections で決めたものから変えない
  */
 export function sortSectionByOrder(section: HomeSection): HomeSection {
+  // 期限なしの欄は、未完了だけを並び替える(完了済みは並び替えない。SPEC.md 6.1)
+  if (section.key === 'none') {
+    return { ...section, items: section.items.filter((item) => item.status === 'todo') };
+  }
   return { ...section, items: [...section.items].sort((a, b) => a.task.order - b.task.order) };
 }
 
@@ -96,6 +122,6 @@ export function buildHomeSections(
   return SECTION_ORDER.map((key) => ({
     key,
     title: SECTION_TITLES[key],
-    items: (itemsBySection.get(key) ?? []).sort(compareItems),
+    items: (itemsBySection.get(key) ?? []).sort(key === 'none' ? compareNoDeadlineItems : compareItems),
   })).filter((section) => section.items.length > 0);
 }

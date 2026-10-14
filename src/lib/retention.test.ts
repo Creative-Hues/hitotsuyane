@@ -90,3 +90,36 @@ describe('1年より古い服薬記録・在庫の履歴の削除', () => {
     expect(await database.records.count()).toBe(0);
   });
 });
+
+describe('期限なしのタスクの完了記録(SPEC.md 3.3)', () => {
+  let database: AppDatabase;
+  const now = new Date(2026, 8, 25, 10, 0);
+  const old = new Date(2024, 0, 1, 12, 0);
+  const createdAt = '2024-01-01T00:00:00.000Z';
+
+  beforeEach(() => {
+    database = new AppDatabase('did-todo-test-retention-none');
+  });
+
+  afterEach(async () => {
+    await database.delete();
+  });
+
+  it('期限なしのタスクが残っていれば(非表示も)、1年より古い記録も消さない。削除したタスクの記録は消す', async () => {
+    await database.tasks.bulkAdd([
+      { id: 'none', name: '期限なし', cycle: { type: 'none' }, careAlterIds: [], hidden: false, order: 0, createdAt },
+      { id: 'hiddenNone', name: '非表示', cycle: { type: 'none' }, careAlterIds: [], hidden: true, order: 1, createdAt },
+      { id: 'daily', name: '毎日', cycle: { type: 'daily' }, careAlterIds: [], hidden: false, order: 2, createdAt },
+    ]);
+    await database.records.bulkAdd([
+      { id: 'r-none', taskId: 'none', alterId: null, completedAt: old.toISOString() },
+      { id: 'r-hidden', taskId: 'hiddenNone', alterId: null, completedAt: old.toISOString() },
+      { id: 'r-daily', taskId: 'daily', alterId: null, completedAt: old.toISOString() },
+      // 削除した期限なしのタスクの記録
+      { id: 'r-deleted', taskId: 'deletedNone', alterId: null, completedAt: old.toISOString() },
+    ]);
+
+    expect(await deleteExpiredRecords(database, now)).toBe(2);
+    expect((await database.records.toArray()).map((r) => r.id).sort()).toEqual(['r-hidden', 'r-none']);
+  });
+});

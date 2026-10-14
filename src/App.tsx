@@ -4,6 +4,7 @@
 // すべての画面は作ったままにして、今の画面以外は隠しておく
 // タブバーのすぐ上に、どのタブからでも押せる「変わったことに気づいた」ボタンを置く(SPEC.md 17.1)
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { BeforeUpdateNoticeBar } from './components/common/BeforeUpdateNoticeBar';
 import { TabBar, type TabKey } from './components/common/TabBar';
 import { TabHeader, type TabSwitchOption } from './components/common/TabHeader';
 import { TestSiteBanner } from './components/common/TestSiteBanner';
@@ -168,23 +169,23 @@ function App() {
 
   return (
     <>
-      {/* 画面の上の帯(テスト版の帯・更新のお知らせ)。スクロールしても上に残す */}
-      {(IS_TEST_SITE || updateNotice.visible) && (
-        <div className="top-bars">
-          {IS_TEST_SITE && <TestSiteBanner />}
-          {updateNotice.visible && (
-            <UpdateNoticeBar
-              kind={updateNotice.kind}
-              onOpenBackup={() => {
-                handleSelectTab('alters');
-                setBackupRequest((count) => count + 1);
-              }}
-              onUpdate={updateNotice.update}
-              onDismiss={updateNotice.dismiss}
-            />
-          )}
-        </div>
-      )}
+      {/* 画面の上の帯(テスト版の帯・更新のお知らせ・更新前のデータ)。スクロールしても上に残す */}
+      <div className="top-bars">
+        {IS_TEST_SITE && <TestSiteBanner />}
+        {/* 更新前のデータを保存したときだけ出る(SPEC.md 18.4) */}
+        <BeforeUpdateNoticeBar />
+        {updateNotice.visible && (
+          <UpdateNoticeBar
+            kind={updateNotice.kind}
+            onOpenBackup={() => {
+              handleSelectTab('alters');
+              setBackupRequest((count) => count + 1);
+            }}
+            onUpdate={updateNotice.update}
+            onDismiss={updateNotice.dismiss}
+          />
+        )}
+      </div>
       {(Object.keys(panels) as TabKey[]).map((key) => (
         <div key={key} hidden={key !== tab}>
           {panels[key]}

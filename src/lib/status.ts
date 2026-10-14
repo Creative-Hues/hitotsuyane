@@ -45,6 +45,9 @@ function periodKeyFnOf(cycle: Cycle): PeriodKeyFn {
       return toLogicalWeek;
     case 'monthly':
       return toLogicalMonth;
+    case 'none':
+      // 期限なし:期間の区切りがないので、すべての記録を同じ期間とみなす(SPEC.md 3.2)
+      return () => 'none';
   }
 }
 
@@ -100,6 +103,7 @@ export function getTaskStatus(
     case 'daily':
     case 'weekly':
     case 'monthly':
+    case 'none':
       return judgeByPeriod(records, now, periodKeyFnOf(cycle));
     case 'everyNDays':
       return judgeEveryNDays(records, now, cycle.n);
@@ -108,7 +112,7 @@ export function getTaskStatus(
 
 /**
  * 今の期間の記録を返す(取り消しで削除する対象。SPEC.md 6.3)。
- * 毎日・毎週・毎月はその期間の記録、○日ごとは今日の論理日の記録。
+ * 毎日・毎週・毎月はその期間の記録、○日ごとは今日の論理日の記録、期限なしはすべての記録。
  * @param now 現在時刻
  */
 export function getCurrentPeriodRecords(
