@@ -2,18 +2,22 @@
 // 画面上部で人格を切り替える。「まだ」を上、「叶ったこと」を下に分け、どちらも ≡ で並び替える
 // 叶ったことにするときは、本人確認 → 協力者を選ぶ画面 → 保存(SPEC.md 9.2)
 // 「選択」で複数の項目を選び、本人確認のあとまとめて削除する(SPEC.md 9.3)
+// 切り替えの「+」で、バケットに出す人格を足す。人格のリストの画面から、バケットから外せる(SPEC.md 9.1)
 import { useState, type ReactNode } from 'react';
 import { AlterSwitcher } from '../components/bucket/AlterSwitcher';
+import { BucketAddSheet } from '../components/bucket/BucketAddSheet';
 import { BucketItemRow } from '../components/bucket/BucketItemRow';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { SortableList } from '../components/common/SortableList';
 import { db } from '../db/db';
-import { deleteBucketItems, reorderBucketItems } from '../db/bucketRepo';
+import { deleteBucketItems, hideAlterFromBucket, reorderBucketItems, showAlterInBucket } from '../db/bucketRepo';
 import { useListScroll } from '../hooks/useListScroll';
 import { useLiveQuery } from '../hooks/useLiveQuery';
 import {
   achieveConfirmMessage,
+  bucketAddChoices,
   deleteConfirmMessage,
+  removeFromBucketMessage,
   resolveSelectedOwner,
   splitBucketItems,
   switchableAlters,
@@ -51,6 +55,9 @@ export function BucketScreen({ tabHeader }: Props) {
   // 選択中なら、選んだ項目のID。選択中でなければ null
   const [checkedIds, setCheckedIds] = useState<ReadonlySet<string> | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // 「+」のシートを開いているか・「バケットから外す」の確認を出しているか
+  const [addingAlter, setAddingAlter] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const rememberScroll = useListScroll(view.kind === 'list');
 
   const open = (next: View) => {
@@ -113,12 +120,52 @@ export function BucketScreen({ tabHeader }: Props) {
 
   const ownerId = resolveSelectedOwner(alters, bucketAlters, selectedId);
   const owner = ownerId === null ? undefined : alterById.get(ownerId);
+  const addChoices = bucketAddChoices(alters, bucketAlters);
+
+  // 人格を選んで、バケットに出す(前に外した人格なら再表示する)
+  const handleAddAlter = async (alterId: string) => {
+    try {
+      await showAlterInBucket(db, alterId, new Date());
+      setAddingAlter(false);
+      setSelectedId(alterId);
+      setCheckedIds(null);
+    } catch (error) {
+      showSaveError(error);
+    }
+  };
+
+  const switcher = (
+    <AlterSwitcher
+      alters={switchableAlters(alters, bucketAlters)}
+      selectedId={owner?.id ?? null}
+      onSelect={(alterId) => {
+        // 人格を切り替えたら、選択をやめる(ほかの人格の項目を選んだまま消さないため)
+        setSelectedId(alterId);
+        setCheckedIds(null);
+      }}
+      onAdd={() => setAddingAlter(true)}
+      addDisabled={addChoices.notAdded.length + addChoices.removed.length === 0}
+    />
+  );
+  const addSheet = addingAlter && (
+    <BucketAddSheet choices={addChoices} onSelect={handleAddAlter} onCancel={() => setAddingAlter(false)} />
+  );
 
   if (!owner) {
+    // 非表示でない人格が1人もいないとき / いるが、バケットに出す人格が0人のとき
+    const hasVisibleAlter = alters.some((alter) => !alter.hidden);
     return (
       <main className="app">
         {tabHeader}
-        <p className="empty">{t('人格がまだ登録されていません。「人格」タブで追加できます')}</p>
+        {hasVisibleAlter ? (
+          <>
+            {switcher}
+            <p className="empty">{t('バケットに出す人格を「+」から追加してください')}</p>
+          </>
+        ) : (
+          <p className="empty">{t('人格がまだ登録されていません。「人格」タブで追加できます')}</p>
+        )}
+        {addSheet}
       </main>
     );
   }
@@ -141,10 +188,15 @@ export function BucketScreen({ tabHeader }: Props) {
     });
   };
 
-  // 人格を切り替えたら、選択をやめる(ほかの人格の項目を選んだまま消さないため)
-  const handleSelectOwner = (alterId: string) => {
-    setSelectedId(alterId);
-    setCheckedIds(null);
+  // バケットから外す(項目は消えない。SPEC.md 9.1)。外したあとは先頭の人格に戻る
+  const handleRemove = async () => {
+    try {
+      await hideAlterFromBucket(db, owner.id);
+      setConfirmingRemove(false);
+      setSelectedId(null);
+    } catch (error) {
+      showSaveError(error);
+    }
   };
 
   const handleDelete = async () => {
@@ -226,7 +278,7 @@ export function BucketScreen({ tabHeader }: Props) {
           </button>
         </div>
       )}
-      <AlterSwitcher alters={switchableAlters(alters, bucketAlters)} selectedId={owner.id} onSelect={handleSelectOwner} />
+      {switcher}
       {!selecting && (
         <button
           type="button"
@@ -238,6 +290,23 @@ export function BucketScreen({ tabHeader }: Props) {
       )}
       {renderSection('まだ', pending, true)}
       {renderSection('叶ったこと', achieved, false)}
+      {!selecting && (
+        <section className="edit-actions">
+          <button type="button" onClick={() => setConfirmingRemove(true)}>
+            {t('この人格をバケットから外す')}
+          </button>
+        </section>
+      )}
+      {addSheet}
+      {confirmingRemove && (
+        <ConfirmDialog
+          message={removeFromBucketMessage(owner.name)}
+          confirmLabel="外す"
+          danger={false}
+          onConfirm={handleRemove}
+          onCancel={() => setConfirmingRemove(false)}
+        />
+      )}
       {achieving && (
         <ConfirmDialog
           message={achieveConfirmMessage(owner.name)}

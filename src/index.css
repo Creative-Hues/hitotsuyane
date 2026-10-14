@@ -953,6 +953,18 @@ textarea {
   font-weight: bold;
 }
 
+/* 切り替えの最後の「+」(バケットに出す人格を足す。SPEC.md 9.1)。人格のボタンと見分けられるよう点線の枠にする */
+.alter-switcher__add {
+  border-style: dashed;
+  font-weight: bold;
+}
+
+/* 「+」のシートの「外した人格」の見出し */
+.sheet__subtitle {
+  font-size: 1rem;
+  margin: 16px 0 8px;
+}
+
 /* 一覧の1件。タップで編集画面を開く */
 .bucket-item {
   flex: 1;
