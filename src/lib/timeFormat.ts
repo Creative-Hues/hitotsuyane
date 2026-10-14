@@ -33,6 +33,12 @@ export function formatMonthDayKanji(iso: string): string {
   return `${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
+/** 論理日('YYYY-MM-DD')を「10/1」形式にする(期間の表示。SPEC.md 8.3) */
+export function formatLogicalMonthDay(logicalDate: string): string {
+  const [, month, day] = logicalDate.split('-').map(Number);
+  return `${month}/${day}`;
+}
+
 /** 「2026/9/28 21:30」形式(実際の日時) */
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);

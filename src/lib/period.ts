@@ -139,6 +139,43 @@ export function logicalDatesOfMonth(logicalMonth: string): LogicalDate[] {
   return dates;
 }
 
+/** 論理日の期間(from 〜 to。両端を含む) */
+export interface LogicalDateRange {
+  from: LogicalDate;
+  to: LogicalDate;
+}
+
+/** 論理日が期間に入るか(両端を含む) */
+export function isInLogicalRange(logicalDate: LogicalDate, range: LogicalDateRange): boolean {
+  return logicalDate >= range.from && logicalDate <= range.to;
+}
+
+/** 診察用の表示の期間の種類(SPEC.md 8.3):前回の受診日から / 今月 / 今週 / 今日 */
+export type ClinicPeriodKind = 'sinceVisit' | 'month' | 'week' | 'today';
+
+/**
+ * 診察用の表示の期間(SPEC.md 8.3)。どれも今日(論理日)まで。
+ * - 前回の受診日から:基準の日から(受診日の当日も入れる)。基準の日が今日より後なら今日から。
+ *   基準の日がない(受診の記録がない)ときは、今月と同じ
+ * - 今月:論理月の1日から / 今週:週の始まり(月曜。WEEK_START_DAY)から / 今日:今日だけ
+ * @param now 現在時刻(テストで任意の時刻を渡せるよう引数にしている)
+ * @param baseDate 前回の受診日(または利用者が変えた基準の日)
+ */
+export function clinicPeriodRange(kind: ClinicPeriodKind, now: Date, baseDate: LogicalDate | null): LogicalDateRange {
+  const today = toLogicalDate(now);
+  const monthStart = `${toLogicalMonth(now)}-01`;
+  switch (kind) {
+    case 'sinceVisit':
+      return { from: baseDate === null ? monthStart : baseDate > today ? today : baseDate, to: today };
+    case 'month':
+      return { from: monthStart, to: today };
+    case 'week':
+      return { from: toLogicalWeek(now), to: today };
+    case 'today':
+      return { from: today, to: today };
+  }
+}
+
 /** 論理日が始まる日時(その日の朝5時。端末のローカル時刻) */
 export function startOfLogicalDate(logicalDate: LogicalDate): Date {
   const { year, month, day } = parseLogicalDate(logicalDate);

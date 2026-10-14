@@ -200,13 +200,13 @@ export function groupSwitchLogsByDay(logs: readonly SwitchLog[]): SwitchLogDay[]
   return days;
 }
 
-/** 記録のきっかけの名前(並びはきっかけの並び順。なければ「わからない」だけ) */
+/** 記録のきっかけの名前(並びはきっかけの並び順。同じきっかけは1つ。なければ「わからない」だけ) */
 export function tagNamesOf(log: Pick<SwitchLog, 'tagIds'>, tags: readonly SwitchTag[]): string[] {
   if (log.tagIds.length === 0) {
     return [UNKNOWN_TRIGGER_NAME];
   }
   const byId = new Map(tags.map((tag) => [tag.id, tag]));
-  return [...log.tagIds]
+  return [...new Set(log.tagIds)]
     .sort((a, b) => (byId.get(a)?.order ?? Infinity) - (byId.get(b)?.order ?? Infinity))
     .map((id) => byId.get(id)?.name ?? UNKNOWN_TAG_NAME);
 }
@@ -224,6 +224,20 @@ export interface SwitchStatsRow {
   total: number;
   /** 人格ごとの回数(人格の並び順、「わからない」は最後。0回は入れない) */
   counts: SwitchAlterCount[];
+}
+
+/**
+ * 記録を人格ごとに数える(人格の並び順、「わからない」・見つからない人格は最後。0回は入れない)。
+ * 期間で区切らずに使えるので、受診メモの診察用の表示の要約(SPEC.md 8.3)でも使う(期間の記録だけを渡す)
+ * @param alters すべての人格(非表示も含む)
+ */
+export function countSwitchAlters(logs: readonly SwitchLog[], alters: readonly Alter[]): SwitchAlterCount[] {
+  const alterById = new Map(alters.map((alter) => [alter.id, alter]));
+  const counts = new Map<string, number>();
+  for (const log of logs) {
+    increment(counts, alterKeyOf(log, alterById));
+  }
+  return toSwitchAlterCounts(counts, alters);
 }
 
 /** 「[交代前の人格] → [交代した人格] ○回」の1行(SPEC.md 17.5) */
