@@ -1,7 +1,10 @@
-// 人格情報タブ(SPEC.md 10.1):「全体のこと」の入口、区分ごとの人格の一覧、区分の設定、集計の表示の切り替え、バックアップの入口
-// 一覧の上に「早見表」「全員分をPDFに」(10.6・10.7)
+// 人格タブ「人格について」(SPEC.md 10.1)。上から:
+// 折りたたみ<人格の情報>(区分ごとの人格の一覧)・<システム全体について>(「全体のこと」の入口)、
+// 「人格情報/早見表」「全員分を/PDF資料に」(10.6・10.7)、折りたたみ<区分と呼び方の設定>、
+// 集計の表示の切り替え、バックアップの入口、このアプリについて
 // 人格の行をタップすると人格ごとのページ(10.3)が開き、そこから各編集画面を開く
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Collapsible } from '../components/common/Collapsible';
 import { AlterList } from '../components/settings/AlterList';
 import { TermSettings } from '../components/settings/TermSettings';
 import { db } from '../db/db';
@@ -56,6 +59,9 @@ type View =
   | { kind: 'backup' }
   | { kind: 'about' };
 
+/** 折りたたみ:人格の情報 / システム全体について / 区分と呼び方の設定 */
+type FoldKey = 'alters' | 'system' | 'settings';
+
 interface Props {
   /**
    * 更新のお知らせの「バックアップを書き出す」を押した回数(SPEC.md 18.2)。
@@ -98,6 +104,14 @@ function AlterInfoContent({ print, clearPrint, backupRequest, addAlterRequest }:
   const showStats = useLiveQuery(() => getShowStats(db));
   const now = useNow();
   const [view, setView] = useState<View>({ kind: 'list' });
+  // 折りたたみの開け閉め。<人格の情報>だけ最初から開いておく。
+  // アプリを開いている間だけ覚える(保存はしない。SPEC.md 10.1)
+  const [openSections, setOpenSections] = useState<Record<FoldKey, boolean>>({
+    alters: true,
+    system: false,
+    settings: false,
+  });
+  const toggleSection = (key: FoldKey) => setOpenSections((current) => ({ ...current, [key]: !current[key] }));
   // 人格のページの集計で選んでいる月(null なら今の論理月)。
   // 編集画面へ行って戻っても保ち、一覧から人格のページを開いたときは今月に戻す(SPEC.md 11章)
   const [statsMonth, setStatsMonth] = useState<string | null>(null);
@@ -272,35 +286,43 @@ function AlterInfoContent({ print, clearPrint, backupRequest, addAlterRequest }:
   return (
     <main className="app">
       <header className="screen-header">
-        <h1>{t('人格情報')}</h1>
+        <h1>{t('人格について')}</h1>
       </header>
+      <Collapsible title={t('人格の情報')} open={openSections.alters} onToggle={() => toggleSection('alters')}>
+        <AlterList
+          alters={alters}
+          categories={categories}
+          onAdd={() => open({ kind: 'alterEdit', id: null })}
+          onOpen={(alter) => open({ kind: 'page', id: alter.id })}
+        />
+      </Collapsible>
+      <Collapsible title="システム全体について" open={openSections.system} onToggle={() => toggleSection('system')}>
+        {/* 特定の人格ではない情報のページへの入口(SPEC.md 10.1・10.5) */}
+        <button type="button" className="add-button common-entry" onClick={() => open({ kind: 'common' })}>
+          <span>全体のこと</span>
+          <span aria-hidden="true">›</span>
+        </button>
+      </Collapsible>
+      {/* 早見表と全員分の PDF(SPEC.md 10.6・10.7)。ボタンの中で改行する */}
       <div className="alter-info-actions">
         <button type="button" onClick={() => open({ kind: 'quickTable' })}>
+          {t('人格情報')}
+          <br />
           早見表
         </button>
         <button type="button" onClick={() => print(buildAllPrint(alters, categories, sections, new Date(), term))}>
-          全員分をPDFに
+          全員分を
+          <br />
+          PDF資料に
         </button>
       </div>
-      {/* 特定の人格ではない情報のページへの入口(SPEC.md 10.1・10.5) */}
-      <button type="button" className="add-button common-entry" onClick={() => open({ kind: 'common' })}>
-        <span>全体のこと</span>
-        <span aria-hidden="true">›</span>
-      </button>
-      <AlterList
-        alters={alters}
-        categories={categories}
-        onAdd={() => open({ kind: 'alterEdit', id: null })}
-        onOpen={(alter) => open({ kind: 'page', id: alter.id })}
-      />
-      <section className="settings-section">
-        <h2>区分</h2>
+      <Collapsible title="区分と呼び方の設定" open={openSections.settings} onToggle={() => toggleSection('settings')}>
         <button type="button" className="add-button" onClick={() => open({ kind: 'categories' })}>
           区分の設定
         </button>
-      </section>
-      {/* 「人格」の呼び方(SPEC.md 14章③) */}
-      <TermSettings />
+        {/* 「人格」の呼び方(SPEC.md 14章③) */}
+        <TermSettings />
+      </Collapsible>
       {/* 集計の表示のオン/オフ(SPEC.md 11章・14章②)。全員分で1つの設定。押すとすぐ保存(読み込み中は出さない) */}
       {showStats !== undefined && (
         <section className="settings-section">

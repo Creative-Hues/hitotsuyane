@@ -1882,3 +1882,59 @@ body {
   gap: 8px;
   margin-bottom: 12px;
 }
+
+/* ---- ブラッシュアップ フェーズ1:人格について(SPEC.md 10.1) ---- */
+
+/* 折りたたみ。見出しの行全体を押して開け閉めする */
+.collapsible {
+  margin-bottom: 16px;
+  border-bottom: 1px solid #ddd;
+}
+
+.collapsible__heading {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.collapsible__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: bold;
+  text-align: left;
+}
+
+.collapsible__mark {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.collapsible__body {
+  padding-top: 8px;
+}
+
+.collapsible__body > .settings-section {
+  margin-bottom: 16px;
+}
+
+/* 人格タブのボタンは文字を中央にそろえる(「人格情報/早見表」などの2行のボタンも) */
+.alter-info-actions {
+  margin-bottom: 24px;
+}
+
+.alter-info-actions button {
+  padding: 8px 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.settings-subheading {
+  font-size: 1.0625rem;
+  margin: 0 0 8px;
+}

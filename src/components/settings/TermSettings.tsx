@@ -1,4 +1,4 @@
-// 「人格」の呼び方の設定(SPEC.md 14章③)。人格情報タブの一覧画面に置く
+// 「人格」の呼び方の設定(SPEC.md 14章③)。人格タブの折りたたみ<区分と呼び方の設定>の中に置く
 // 選択肢から選ぶと、すぐ保存する。「自分で入力」は、入力して「保存」を押したときに保存する
 import { useState, type FormEvent } from 'react';
 import { db } from '../../db/db';
@@ -43,7 +43,7 @@ export function TermSettings() {
 
   return (
     <section className="settings-section">
-      <h2>呼び方</h2>
+      <h3 className="settings-subheading">呼び方</h3>
       <p className="settings-note">画面に出る「{term}」という言葉を、自分たちの言葉に変えられます。</p>
       <fieldset className="field">
         <legend className="visually-hidden">呼び方</legend>

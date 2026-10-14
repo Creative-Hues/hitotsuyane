@@ -1,5 +1,6 @@
 // 人格の一覧(区分ごとの見出し・並び替え・追加・人格を開く。SPEC.md 10.1)
 // 並び替え(≡)は同じ区分の中だけ。非表示の人格は区分ごとに分けず、一覧の下にまとめる
+// 見出しは、入れ物の折りたたみ<人格の情報>が出す
 import { db } from '../../db/db';
 import { reorderAlters } from '../../db/alterRepo';
 import { groupAltersByCategory } from '../../lib/alterInfo';
@@ -29,8 +30,7 @@ export function AlterList({ alters, categories, onAdd, onOpen }: Props) {
   );
 
   return (
-    <section className="settings-section">
-      <h2>{t('人格')}</h2>
+    <div className="settings-section">
       {groups.length === 0 && <p className="empty">{t('人格がまだ登録されていません')}</p>}
       {groups.map((group) => (
         <div key={group.categoryId ?? 'uncategorized'} className="alter-group">
@@ -60,6 +60,6 @@ export function AlterList({ alters, categories, onAdd, onOpen }: Props) {
           </ul>
         </>
       )}
-    </section>
+    </div>
   );
 }
