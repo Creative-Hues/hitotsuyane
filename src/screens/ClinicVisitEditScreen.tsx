@@ -105,7 +105,8 @@ export function ClinicVisitEditScreen({ visit, alters, staff, onBack }: Props) {
         </button>
         <h1>{visit ? '受診の記録を編集' : '受診した'}</h1>
       </header>
-      <form className="edit-form" onSubmit={(event) => void handleSubmit(event)}>
+      {/* 今日より後の日は、ブラウザの確認ではなくアプリの文で知らせる(noValidate) */}
+      <form className="edit-form" noValidate onSubmit={(event) => void handleSubmit(event)}>
         <label className="field">
           <span>受診した日</span>
           <input

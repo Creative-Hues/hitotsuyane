@@ -236,11 +236,19 @@ function markedLines(mark: string, indent: string, body: string): string[] {
   return body.split('\n').map((line, index) => (index === 0 ? `${mark}${line}` : `${indent}${line}`));
 }
 
+/** まだ話していないメモがないときの文(SPEC.md 8.3) */
+export const NO_PENDING_NOTES_TEXT = 'まだ話していないメモはありません';
+
 /**
  * 「文字としてコピー」の文(SPEC.md 8.3)。画面の診察用の表示と同じ内容。
  * 改行のあるメモ・コメントは、2行目から字下げする
+ * @param switchText 「メモ+交代記録」のときの、交代記録の文(buildSwitchSummaryText)。メモの下に入れる
  */
-export function buildClinicViewText(groups: readonly ClinicViewGroup[], now: Date): string {
+export function buildClinicViewText(groups: readonly ClinicViewGroup[], now: Date, switchText?: string): string {
+  const tail = switchText === undefined ? [] : [switchText];
+  if (groups.length === 0) {
+    return [clinicViewTitle(now), NO_PENDING_NOTES_TEXT, ...tail].join('\n\n');
+  }
   const blocks = groups.map((group) => {
     const lines = [`■ ${group.name}`];
     for (const category of group.categories) {
@@ -254,7 +262,7 @@ export function buildClinicViewText(groups: readonly ClinicViewGroup[], now: Dat
     }
     return lines.join('\n');
   });
-  return [clinicViewTitle(now), ...blocks].join('\n\n');
+  return [clinicViewTitle(now), ...blocks, ...tail].join('\n\n');
 }
 
 /**

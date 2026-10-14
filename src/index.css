@@ -939,6 +939,90 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+/* 診察用の表示の期間(SPEC.md 8.3)。4つのボタンを2列×2行に並べる(スマホの幅でもはみ出さない) */
+.clinic-period {
+  margin-bottom: 12px;
+}
+
+.clinic-period__buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.clinic-period__button {
+  min-width: 0;
+  border: 1px solid #1f6fd1;
+  border-radius: 8px;
+  background: transparent;
+  color: #1f6fd1;
+}
+
+.clinic-period__button--current {
+  background: #1f6fd1;
+  color: #fff;
+  font-weight: bold;
+}
+
+.clinic-period__button:disabled {
+  opacity: 0.4;
+}
+
+.clinic-period__base {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+/* 診察用の表示の交代記録の部分 */
+.clinic-view__switch {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 2px solid #ccc;
+}
+
+/* 要約は、見出し(回数・人格ごと・多いきっかけ)の下に中身を出す(長い呼び方・長い名前でも詰まらない) */
+.clinic-switch__summary {
+  margin: 0 0 8px;
+}
+
+.clinic-switch__summary dt {
+  font-weight: bold;
+}
+
+.clinic-switch__summary dd {
+  margin: 0 0 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.clinic-switch__alters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.clinic-switch__lines {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.clinic-switch__lines > li {
+  padding: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+.clinic-switch__time {
+  font-weight: bold;
+}
+
+.clinic-switch__tags {
+  font-size: 1rem;
+}
+
 /* ---- フェーズ11:バケット ---- */
 
 /* 確認ダイアログの、消す操作でない実行ボタン(追加・変更・叶ったことにする) */
@@ -1631,7 +1715,9 @@ body {
 }
 
 .switch-time input[type='datetime-local'],
-.edit-form input[type='datetime-local'] {
+.edit-form input[type='datetime-local'],
+.edit-form input[type='date'],
+.clinic-period__base input[type='date'] {
   min-height: 44px;
   font-size: 1rem; /* 16px 未満だと iPhone で自動ズームされる */
   padding: 0 8px;

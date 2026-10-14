@@ -16,7 +16,7 @@ import type { ClinicNote } from '../lib/types';
 import { CategorySettingsScreen } from './CategorySettingsScreen';
 import { ClinicNoteCommentEditScreen } from './ClinicNoteCommentEditScreen';
 import { ClinicNoteEditScreen } from './ClinicNoteEditScreen';
-import { ClinicViewScreen } from './ClinicViewScreen';
+import { ClinicViewScreen, DEFAULT_CLINIC_VIEW_OPTIONS, type ClinicViewOptions } from './ClinicViewScreen';
 import { ClinicVisitEditScreen } from './ClinicVisitEditScreen';
 import { ClinicVisitHistoryScreen } from './ClinicVisitHistoryScreen';
 
@@ -45,6 +45,8 @@ export function ClinicNoteScreen({ tabHeader }: Props) {
   const comments = useLiveQuery(() => db.clinicNoteComments.toArray());
   const staff = useLiveQuery(() => db.clinicStaff.toArray());
   const [view, setView] = useState<View>({ kind: 'list' });
+  // 診察用の表示の中身・期間(アプリを開いている間は、最後に選んだものを覚える。保存はしない。SPEC.md 8.3)
+  const [clinicViewOptions, setClinicViewOptions] = useState<ClinicViewOptions>(DEFAULT_CLINIC_VIEW_OPTIONS);
   const rememberScroll = useListScroll(view.kind === 'list');
 
   const open = (next: View) => {
@@ -63,7 +65,7 @@ export function ClinicNoteScreen({ tabHeader }: Props) {
   }
 
   if (view.kind === 'clinicView') {
-    return <ClinicViewScreen onBack={backToList} />;
+    return <ClinicViewScreen options={clinicViewOptions} onChangeOptions={setClinicViewOptions} onBack={backToList} />;
   }
 
   if (view.kind === 'visit') {

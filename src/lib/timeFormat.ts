@@ -33,6 +33,12 @@ export function formatMonthDayKanji(iso: string): string {
   return `${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
+/** 論理日('YYYY-MM-DD')を「10月1日」形式にする(「前回の受診日」の表示。SPEC.md 8.3) */
+export function formatLogicalDateKanji(logicalDate: string): string {
+  const [, month, day] = logicalDate.split('-').map(Number);
+  return `${month}月${day}日`;
+}
+
 /** 論理日('YYYY-MM-DD')を「10/1」形式にする(期間の表示。SPEC.md 8.3) */
 export function formatLogicalMonthDay(logicalDate: string): string {
   const [, month, day] = logicalDate.split('-').map(Number);
