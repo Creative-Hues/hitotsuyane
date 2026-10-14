@@ -4,6 +4,7 @@
 // 一番上に「[人格A]として見ています」を出す。新着は、いま見ている人格にとってのもの(SPEC.md 22.4)
 import { useState } from 'react';
 import { AlterButtons } from '../components/common/AlterButtons';
+import { HelpButton } from '../components/common/HelpButton';
 import { AlterNameLabel } from '../components/common/AlterNameLabel';
 import { db } from '../db/db';
 import { useListScroll } from '../hooks/useListScroll';
@@ -157,6 +158,7 @@ export function BoardScreen({ viewerAlterId, onChangeViewer }: Props) {
     <main className="app">
       <header className="screen-header">
         <h1>掲示板</h1>
+        <HelpButton helpKey="board" />
       </header>
       <div className="screen-actions">
         <button type="button" onClick={() => open({ kind: 'settings' })}>

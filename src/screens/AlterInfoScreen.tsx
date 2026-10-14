@@ -5,6 +5,7 @@
 // 人格の行をタップすると人格ごとのページ(10.3)が開き、そこから各編集画面を開く
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Collapsible } from '../components/common/Collapsible';
+import { HelpButton } from '../components/common/HelpButton';
 import { AlterList } from '../components/settings/AlterList';
 import { TermSettings } from '../components/settings/TermSettings';
 import { db } from '../db/db';
@@ -70,9 +71,11 @@ interface Props {
   backupRequest?: number;
   /** 「はじめに」の「人格を登録する」を押した回数(SPEC.md 14章⑤)。増えるたびに、人格の追加の画面を開く */
   addAlterRequest?: number;
+  /** ヘルプの「「はじめに」をもう一度見る」を押したとき(SPEC.md 23章) */
+  onOpenIntro?: () => void;
 }
 
-export function AlterInfoScreen({ backupRequest = 0, addAlterRequest = 0 }: Props) {
+export function AlterInfoScreen({ backupRequest = 0, addAlterRequest = 0, onOpenIntro }: Props) {
   const { print, printView, clearPrint } = usePrint();
   return (
     <>
@@ -81,6 +84,7 @@ export function AlterInfoScreen({ backupRequest = 0, addAlterRequest = 0 }: Prop
         clearPrint={clearPrint}
         backupRequest={backupRequest}
         addAlterRequest={addAlterRequest}
+        onOpenIntro={onOpenIntro}
       />
       {/* 印刷用の中身(画面には見えない。印刷のときだけ出る) */}
       {printView}
@@ -93,9 +97,10 @@ interface ContentProps {
   clearPrint: () => void;
   backupRequest: number;
   addAlterRequest: number;
+  onOpenIntro?: () => void;
 }
 
-function AlterInfoContent({ print, clearPrint, backupRequest, addAlterRequest }: ContentProps) {
+function AlterInfoContent({ print, clearPrint, backupRequest, addAlterRequest, onOpenIntro }: ContentProps) {
   const { t, term } = useTerm();
   const alters = useLiveQuery(() => db.alters.toArray());
   const categories = useLiveQuery(() => db.categories.toArray());
@@ -287,6 +292,21 @@ function AlterInfoContent({ print, clearPrint, backupRequest, addAlterRequest }:
     <main className="app">
       <header className="screen-header">
         <h1>{t('人格について')}</h1>
+        <HelpButton
+          helpKey="alters"
+          footer={(close) => (
+            <button
+              type="button"
+              className="sheet__wide-button help-sheet__intro"
+              onClick={() => {
+                close();
+                onOpenIntro?.();
+              }}
+            >
+              「はじめに」をもう一度見る
+            </button>
+          )}
+        />
       </header>
       <Collapsible title={t('人格の情報')} open={openSections.alters} onToggle={() => toggleSection('alters')}>
         <AlterList

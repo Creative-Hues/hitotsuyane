@@ -71,6 +71,8 @@ function App() {
   // 「はじめに」(SPEC.md 14章⑤):人格が1人もいない間、開くたびに出す。閉じたら、この起動の間は出さない
   const alterCount = useLiveQuery(() => db.alters.count());
   const [introClosed, setIntroClosed] = useState(false);
+  // 人格についてのヘルプの「「はじめに」をもう一度見る」で開いたか(SPEC.md 23章)
+  const [introRequested, setIntroRequested] = useState(false);
   // 「人格を登録する」を押した回数(押すたびに、人格タブで人格の追加の画面を開く)
   const [addAlterRequest, setAddAlterRequest] = useState(0);
   // 掲示板の「いま見ている人格」(SPEC.md 22.4):いちばん新しい交代の記録の人格。選び直しはアプリを開いている間だけ覚える
@@ -126,6 +128,8 @@ function App() {
       title="リスト"
       options={LIST_OPTIONS}
       current={listView}
+      // いま出している画面(ToDo/バケット)の使い方を出す(SPEC.md 23章)
+      helpKey={listView === 'todo' ? 'todo' : 'bucket'}
       onSelect={(next) => {
         rememberScroll();
         setListView(next);
@@ -137,6 +141,7 @@ function App() {
       title="治療"
       options={CARE_OPTIONS}
       current={careView}
+      helpKey={careView === 'medication' ? 'medication' : 'clinic'}
       onSelect={(next) => {
         rememberScroll();
         setCareView(next);
@@ -188,7 +193,13 @@ function App() {
         onChangeViewer={(alterId) => setViewerOverride(buildViewerOverride(switchLogs ?? [], alterId))}
       />
     ),
-    alters: <AlterInfoScreen backupRequest={backupRequest} addAlterRequest={addAlterRequest} />,
+    alters: (
+      <AlterInfoScreen
+        backupRequest={backupRequest}
+        addAlterRequest={addAlterRequest}
+        onOpenIntro={() => setIntroRequested(true)}
+      />
+    ),
   };
 
   return (
@@ -231,14 +242,18 @@ function App() {
         </p>
       )}
       <TabBar current={tab} onSelect={handleSelectTab} badges={boardBadge === null ? {} : { board: boardBadge }} />
-      {alterCount === 0 && !introClosed && (
+      {((alterCount === 0 && !introClosed) || introRequested) && (
         <IntroScreen
           onAddAlter={() => {
             setIntroClosed(true);
+            setIntroRequested(false);
             handleSelectTab('alters');
             setAddAlterRequest((count) => count + 1);
           }}
-          onClose={() => setIntroClosed(true)}
+          onClose={() => {
+            setIntroClosed(true);
+            setIntroRequested(false);
+          }}
         />
       )}
       {switchNoticedAt !== null && (

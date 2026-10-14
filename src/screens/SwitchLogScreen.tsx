@@ -3,6 +3,7 @@
 // [一覧][カレンダー] で、集計と記録の一覧か、その月のカレンダー(SPEC.md 17.7)かを切り替える
 // カレンダーの日付を押すと、その日の記録だけの一覧を開く
 import { useState } from 'react';
+import { HelpButton } from '../components/common/HelpButton';
 import { SwitchCalendarView } from '../components/switch/SwitchCalendarView';
 import { SwitchReportDocument } from '../components/switch/SwitchReportDocument';
 import { SwitchStatsView } from '../components/switch/SwitchStatsView';
@@ -123,24 +124,7 @@ export function SwitchLogScreen() {
     <main className="app">
       <header className="screen-header">
         <h1>交代の記録</h1>
-        <button
-          type="button"
-          disabled={stats.total === 0}
-          onClick={() =>
-            print(
-              <SwitchReportDocument
-                month={shownMonth}
-                stats={stats}
-                logs={logs}
-                alters={alters}
-                tags={tags}
-                createdAt={new Date()}
-              />,
-            )
-          }
-        >
-          受診用にPDF
-        </button>
+        <HelpButton helpKey="switch" />
       </header>
       <div className="stats-month">
         <button type="button" disabled={shownMonth <= range.oldest} onClick={() => setMonth(previousLogicalMonth(shownMonth))}>
@@ -151,6 +135,26 @@ export function SwitchLogScreen() {
           次の月 ›
         </button>
       </div>
+      {/* 見出しの行の右端は「?」なので、月の切り替えの下に横いっぱいで置く(SPEC.md 17.4) */}
+      <button
+        type="button"
+        className="add-button"
+        disabled={stats.total === 0}
+        onClick={() =>
+          print(
+            <SwitchReportDocument
+              month={shownMonth}
+              stats={stats}
+              logs={logs}
+              alters={alters}
+              tags={tags}
+              createdAt={new Date()}
+            />,
+          )
+        }
+      >
+        受診用にPDF
+      </button>
 
       <div className="tab-switch" role="group" aria-label="一覧とカレンダーの切り替え">
         {MODE_OPTIONS.map((option) => (

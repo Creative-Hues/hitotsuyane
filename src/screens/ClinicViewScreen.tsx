@@ -5,6 +5,7 @@
 // (クリップボードは端末の中だけ。外への通信はしない)
 import { useState } from 'react';
 import { ClinicSwitchSection } from '../components/clinic/ClinicSwitchSection';
+import { HelpButton } from '../components/common/HelpButton';
 import { db } from '../db/db';
 import { useLiveQuery } from '../hooks/useLiveQuery';
 import { useNow } from '../hooks/useNow';
@@ -112,6 +113,7 @@ export function ClinicViewScreen({ options, onChangeOptions, onBack }: Props) {
           ‹ 戻る
         </button>
         <h1>診察用の表示</h1>
+        <HelpButton helpKey="clinicView" />
       </header>
       <div className="tab-switch" role="group" aria-label="表示する中身">
         {CONTENT_OPTIONS.map((option) => (

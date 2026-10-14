@@ -2226,6 +2226,37 @@ body {
   margin: 0 0 8px;
 }
 
+/* ---- ブラッシュアップ フェーズ5:ヘルプ(SPEC.md 23章) ---- */
+
+/* 見出しの行の右端の「?」。丸い枠にする */
+.help-button {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  padding: 0;
+  border: 2px solid #1f6fd1;
+  border-radius: 50%;
+  background: transparent;
+  color: #1f6fd1;
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.help-sheet__items {
+  margin: 0 0 16px;
+  padding-left: 1.25em;
+  line-height: 1.6;
+}
+
+.help-sheet__items > li {
+  margin-bottom: 8px;
+}
+
+.help-sheet__intro {
+  margin-bottom: 12px;
+}
+
 /* ---- ブラッシュアップ フェーズ4:掲示板(SPEC.md 22章) ---- */
 
 /* 「[人格A]として見ています」(SPEC.md 22.4)。押すと選び直せる */

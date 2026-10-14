@@ -2,6 +2,8 @@
 // タブの中で画面を切り替えるとき(リスト・治療)は、その下に横に並んだ切り替えボタンを出す
 // 「‹ 戻る」のある画面では出さない(各画面が、一番上の画面のときだけこの部品を出す)
 import { useTerm } from '../../hooks/useTerm';
+import type { HelpKey } from '../../lib/helpTexts';
+import { HelpButton } from './HelpButton';
 
 export interface TabSwitchOption<K extends string> {
   key: K;
@@ -15,14 +17,17 @@ interface Props<K extends string> {
   options?: readonly TabSwitchOption<K>[];
   current?: K;
   onSelect?: (key: K) => void;
+  /** 見出しの行の右端に「?」を出すときの、ヘルプの画面(SPEC.md 23章) */
+  helpKey?: HelpKey;
 }
 
-export function TabHeader<K extends string>({ title, options, current, onSelect }: Props<K>) {
+export function TabHeader<K extends string>({ title, options, current, onSelect, helpKey }: Props<K>) {
   const { t } = useTerm();
   return (
     <>
       <header className="screen-header">
         <h1>{t(title)}</h1>
+        {helpKey && <HelpButton helpKey={helpKey} />}
       </header>
       {options && (
         <div className="tab-switch" role="group" aria-label={`${t(title)}の画面の切り替え`}>
