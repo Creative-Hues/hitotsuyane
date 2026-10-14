@@ -52,3 +52,34 @@ export function updateNoticeText(kind: UpdateNoticeKind): string {
     ? '今回の更新では、データの形が変わります。必ずバックアップを書き出してから更新してください。'
     : '新しい版があります。更新の前に、バックアップの書き出しをおすすめします。';
 }
+
+/** 画面を開いたままのときに、新しい版がないか確かめる間隔(30分。SPEC.md 18.2) */
+export const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+
+/**
+ * オフライン用の仕組み(サービスワーカー)の、新しい版の状態
+ * - waiting:新しい版を取り終えて、切り替えを待っている(帯を出す)
+ * - installing:新しい版を取っている途中(取り終わるのを見届ける)
+ * - none:新しい版はない
+ */
+export type ServiceWorkerUpdateState = 'waiting' | 'installing' | 'none';
+
+/**
+ * 登録の状態から、新しい版の状態を決める(SPEC.md 18.2)。
+ * 使っている部品(workbox-window)が合図を見落としても帯を出せるよう、アプリ自身でも確かめるために使う。
+ * 今動いている版(active)がないときは、初めて入れたところなので「新しい版」ではない
+ * (初めて入れたときは、取り終えた直後に一瞬だけ waiting になってから、すぐに動き始めるため)
+ */
+export function serviceWorkerUpdateState(registration: {
+  hasActive: boolean;
+  hasWaiting: boolean;
+  hasInstalling: boolean;
+}): ServiceWorkerUpdateState {
+  if (!registration.hasActive) {
+    return 'none';
+  }
+  if (registration.hasWaiting) {
+    return 'waiting';
+  }
+  return registration.hasInstalling ? 'installing' : 'none';
+}
