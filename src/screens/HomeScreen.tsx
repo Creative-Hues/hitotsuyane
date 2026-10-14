@@ -1,7 +1,9 @@
-// ToDo 画面(SPEC.md 6.1):今日・今週・今月の欄と、記録・取り消し。リストタブの中で、バケットと切り替える(5章)
+// ToDo 画面(SPEC.md 6.1):期限なし・今日・今週・今月の欄と、記録・取り消し。リストタブの中で、バケットと切り替える(5章)
+// 「+ 追加」で、期限なしのタスクの追加画面を開く(ほかの周期は「タスク設定」から足す)
 import { useState, type ReactNode } from 'react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { AlterPickerSheet } from '../components/home/AlterPickerSheet';
+import { NoDeadlineSection } from '../components/home/NoDeadlineSection';
 import { TaskSection } from '../components/home/TaskSection';
 import { db } from '../db/db';
 import { addRecord, undoCurrentRecord } from '../db/recordRepo';
@@ -11,7 +13,11 @@ import { completionLabelText, toCompletionLabel } from '../lib/completionLabel';
 import { buildHomeSections, type HomeItem, type HomeSection } from '../lib/home';
 import { sortForSettings } from '../lib/ordering';
 import { showSaveError } from '../lib/showError';
-import type { Task } from '../lib/types';
+import type { Cycle, Task } from '../lib/types';
+import { TaskEditScreen } from './TaskEditScreen';
+
+/** 「+ 追加」で足すタスクの周期(SPEC.md 6.1) */
+const NO_DEADLINE: Cycle = { type: 'none' };
 
 /** 開いているシート・確認:なし / 人格の選択 / 取り消しの確認 */
 type Modal = null | { kind: 'pick'; task: Task } | { kind: 'undo'; task: Task; labelText: string };
@@ -30,6 +36,10 @@ export function HomeScreen({ onOpenTaskSettings, tabHeader }: Props) {
   const [modal, setModal] = useState<Modal>(null);
   // 並び替えモード中か(SPEC.md 6.1)
   const [reordering, setReordering] = useState(false);
+  // 期限なしの「完了済み」を開いているか(アプリを開いたときは閉じている。SPEC.md 6.1)
+  const [noDeadlineDoneOpen, setNoDeadlineDoneOpen] = useState(false);
+  // 「+ 追加」の画面を開いているか
+  const [adding, setAdding] = useState(false);
 
   const alterById = new Map((alters ?? []).map((alter) => [alter.id, alter]));
 
@@ -73,22 +83,42 @@ export function HomeScreen({ onOpenTaskSettings, tabHeader }: Props) {
     if (sections.length === 0) {
       return <p className="empty">表示するタスクはありません</p>;
     }
-    return sections.map((section) => (
-      <TaskSection
-        key={section.key}
-        section={section}
-        alters={alters}
-        alterById={alterById}
-        reordering={reordering}
-        onTap={handleTap}
-      />
-    ));
+    return sections.map((section) =>
+      section.key === 'none' ? (
+        <NoDeadlineSection
+          key={section.key}
+          section={section}
+          alters={alters}
+          alterById={alterById}
+          reordering={reordering}
+          doneOpen={noDeadlineDoneOpen}
+          onToggleDone={() => setNoDeadlineDoneOpen((current) => !current)}
+          onTap={handleTap}
+        />
+      ) : (
+        <TaskSection
+          key={section.key}
+          section={section}
+          alters={alters}
+          alterById={alterById}
+          reordering={reordering}
+          onTap={handleTap}
+        />
+      ),
+    );
   };
+
+  if (adding && alters) {
+    return <TaskEditScreen alters={alters} fixedCycle={NO_DEADLINE} onBack={() => setAdding(false)} />;
+  }
 
   return (
     <main className="app">
       {tabHeader}
       <div className="screen-actions">
+        <button type="button" disabled={reordering} onClick={() => setAdding(true)}>
+          + 追加
+        </button>
         <button type="button" onClick={() => setReordering((current) => !current)}>
           {reordering ? '完了' : '並び替え'}
         </button>

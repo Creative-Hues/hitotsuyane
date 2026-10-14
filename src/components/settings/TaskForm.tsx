@@ -1,4 +1,5 @@
 // タスクの追加・編集フォーム
+// fixedCycle を渡すと、周期を選ぶ欄を出さず、その周期で保存する(ToDo 画面の「+ 追加」=期限なし。SPEC.md 6.1)
 import { useState, type FormEvent } from 'react';
 import type { TaskInput } from '../../db/taskRepo';
 import { mergeCareAlterIds } from '../../lib/careAlters';
@@ -14,6 +15,7 @@ const CYCLE_OPTIONS: { type: CycleType; label: string }[] = [
   { type: 'everyNDays', label: '○日ごと' },
   { type: 'weekly', label: cycleLabel({ type: 'weekly' }) },
   { type: 'monthly', label: cycleLabel({ type: 'monthly' }) },
+  { type: 'none', label: cycleLabel({ type: 'none' }) },
 ];
 
 interface Props {
@@ -21,11 +23,13 @@ interface Props {
   initial?: Task;
   /** 選択肢に出す人格(非表示でない人格、order 順) */
   selectableAlters: Alter[];
+  /** 周期を決めておくとき(選ぶ欄を出さない) */
+  fixedCycle?: Cycle;
   onSubmit: (input: TaskInput) => Promise<void>;
   onCancel: () => void;
 }
 
-export function TaskForm({ initial, selectableAlters, onSubmit, onCancel }: Props) {
+export function TaskForm({ initial, selectableAlters, fixedCycle, onSubmit, onCancel }: Props) {
   const { t } = useTerm();
   const selectableIds = selectableAlters.map((alter) => alter.id);
   const [name, setName] = useState(initial?.name ?? '');
@@ -48,7 +52,9 @@ export function TaskForm({ initial, selectableAlters, onSubmit, onCancel }: Prop
       return;
     }
     let cycle: Cycle;
-    if (cycleType === 'everyNDays') {
+    if (fixedCycle) {
+      cycle = fixedCycle;
+    } else if (cycleType === 'everyNDays') {
       const n = parseEveryNDays(nText);
       if (n === null) {
         setError('日数は2以上の整数で入力してください');
@@ -70,32 +76,34 @@ export function TaskForm({ initial, selectableAlters, onSubmit, onCancel }: Prop
         <input type="text" value={name} onChange={(event) => setName(event.target.value)} />
       </label>
 
-      <fieldset className="field">
-        <legend>周期</legend>
-        {CYCLE_OPTIONS.map((option) => (
-          <label key={option.type} className="choice">
-            <input
-              type="radio"
-              name="cycle"
-              checked={cycleType === option.type}
-              onChange={() => setCycleType(option.type)}
-            />
-            {option.label}
-          </label>
-        ))}
-        {cycleType === 'everyNDays' && (
-          <label className="choice">
-            <input
-              type="text"
-              inputMode="numeric"
-              className="days-input"
-              value={nText}
-              onChange={(event) => setNText(event.target.value)}
-            />
-            日ごと(2以上)
-          </label>
-        )}
-      </fieldset>
+      {!fixedCycle && (
+        <fieldset className="field">
+          <legend>周期</legend>
+          {CYCLE_OPTIONS.map((option) => (
+            <label key={option.type} className="choice">
+              <input
+                type="radio"
+                name="cycle"
+                checked={cycleType === option.type}
+                onChange={() => setCycleType(option.type)}
+              />
+              {option.label}
+            </label>
+          ))}
+          {cycleType === 'everyNDays' && (
+            <label className="choice">
+              <input
+                type="text"
+                inputMode="numeric"
+                className="days-input"
+                value={nText}
+                onChange={(event) => setNText(event.target.value)}
+              />
+              日ごと(2以上)
+            </label>
+          )}
+        </fieldset>
+      )}
 
       <fieldset className="field">
         <legend>{t('気にしている人格')}</legend>
