@@ -2,6 +2,7 @@
 // ライブラリを使わず、テーブルごとに「項目名 → チェック関数」の表で確かめる。
 // 表は Record<keyof 型, …> なので、型に項目を足したら、ここも直さないとビルドが通らない。
 import { buildInitialBucketAlters } from './bucket';
+import { buildInitialClinicStaff } from './clinicVisits';
 import { buildInitialMedicationTimings } from './medicationTimings';
 import { buildInitialSwitchTags, guessFromAlterId } from './switchLog';
 import type {
@@ -12,6 +13,8 @@ import type {
   ClinicNote,
   ClinicNoteCategory,
   ClinicNoteComment,
+  ClinicStaff,
+  ClinicVisit,
   CompletionRecord,
   Cycle,
   Medication,
@@ -81,7 +84,7 @@ const alterSchema: Schema<Alter> = {
   identify: isString,
 };
 
-const namedItemSchema: Schema<AlterCategory & ClinicNoteCategory> = {
+const namedItemSchema: Schema<AlterCategory & ClinicNoteCategory & ClinicStaff> = {
   id: isString,
   name: isString,
   order: isNumber,
@@ -212,6 +215,15 @@ const bucketAlterSchema: Schema<BucketAlter> = {
   addedAt: isString,
 };
 
+const clinicVisitSchema: Schema<ClinicVisit> = {
+  id: isString,
+  visitedOn: isString,
+  // 人格・話した相手にあるかどうかは、全体を読んだあとで確かめる(checkReferences)
+  alterIds: isStringArray,
+  staffIds: isStringArray,
+  createdAt: isString,
+};
+
 /** バックアップに入れるデータ(端末の設定は入れない) */
 export interface BackupData {
   alters: Alter[];
@@ -231,6 +243,10 @@ export interface BackupData {
   switchLogs: SwitchLog[];
   /** バケットに出す人格(2026年10月のブラッシュアップ フェーズ2で追加。SPEC.md 9.1) */
   bucketAlters: BucketAlter[];
+  /** 受診の記録(2026年10月のブラッシュアップ フェーズ3で追加。SPEC.md 8.5) */
+  clinicVisits: ClinicVisit[];
+  /** 話した相手の選択肢(同じく追加。SPEC.md 8.6) */
+  clinicStaff: ClinicStaff[];
 }
 
 /** テーブルごとのチェック表と、エラー表示用の名前 */
@@ -252,6 +268,8 @@ const TABLES: { [K in keyof BackupData]: { label: string; schema: Schema<BackupD
   switchLogs: { label: '交代の記録', schema: switchLogSchema },
   // 人格のあとに読む(ないときに人格から作るため。rowsOf)
   bucketAlters: { label: 'バケットに出す人格', schema: bucketAlterSchema },
+  clinicStaff: { label: '話した相手の選択肢', schema: namedItemSchema },
+  clinicVisits: { label: '受診の記録', schema: clinicVisitSchema },
 };
 
 /** バックアップに入れるテーブルの名前(並び順は書き出しの順) */
@@ -347,6 +365,15 @@ function checkReferences(data: BackupData): string | null {
   if (bucketAlterIndex >= 0) {
     return `「バケットに出す人格」の${bucketAlterIndex + 1}件目の人格が見つかりません`;
   }
+  const visitAlterIndex = data.clinicVisits.findIndex((visit) => visit.alterIds.some((id) => !alterIds.has(id)));
+  if (visitAlterIndex >= 0) {
+    return `「受診の記録」の${visitAlterIndex + 1}件目の人格が見つかりません`;
+  }
+  const staffIds = new Set(data.clinicStaff.map((item) => item.id));
+  const visitStaffIndex = data.clinicVisits.findIndex((visit) => visit.staffIds.some((id) => !staffIds.has(id)));
+  if (visitStaffIndex >= 0) {
+    return `「受診の記録」の${visitStaffIndex + 1}件目の話した相手が見つかりません`;
+  }
   return null;
 }
 
@@ -358,6 +385,8 @@ function checkReferences(data: BackupData): string | null {
  * - 交代の記録(フェーズ15で追加):記録なし
  * - バケットに出す人格(2026年10月のブラッシュアップ フェーズ2で追加):非表示でない人格全員(版7に上げるときと同じ)。
  *   追加した日時は書き出した日時
+ * - 受診の記録(フェーズ3で追加):記録なし
+ * - 話した相手の選択肢(フェーズ3で追加):最初の4つ。作成日時は書き出した日時
  * ほかのテーブルは、ないときはそのまま(読み込まない)
  * @param parsed ここまでに読んだテーブル(人格は「バケットに出す人格」より先に読む)
  */
@@ -373,6 +402,10 @@ function rowsOf(
   switch (name) {
     case 'bucketAlters':
       return buildInitialBucketAlters(parsed.alters ?? [], exportedAt);
+    case 'clinicVisits':
+      return [];
+    case 'clinicStaff':
+      return buildInitialClinicStaff(exportedAt);
     case 'medicationTimings':
       return buildInitialMedicationTimings(exportedAt);
     case 'clinicNoteComments':

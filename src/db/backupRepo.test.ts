@@ -164,6 +164,14 @@ function fullData(): BackupData {
       { alterId: 'alter-a', hidden: false, addedAt: createdAt },
       { alterId: 'alter-b', hidden: true, addedAt: createdAt },
     ],
+    clinicVisits: [
+      { id: 'v1', visitedOn: '2026-10-01', alterIds: ['alter-a', 'alter-b'], staffIds: ['clinic-staff-doctor', 'staff-custom'], createdAt },
+      { id: 'v2', visitedOn: '2026-10-08', alterIds: [], staffIds: [], createdAt },
+    ],
+    clinicStaff: [
+      { id: 'clinic-staff-doctor', name: '主治医', order: 0, createdAt },
+      { id: 'staff-custom', name: '薬剤師', order: 1, createdAt },
+    ],
   };
 }
 

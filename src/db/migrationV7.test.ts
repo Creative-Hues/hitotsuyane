@@ -128,8 +128,7 @@ describe('版6 → 版7(SPEC.md 3.5)', () => {
     await writeV6();
     database = new AppDatabase(DB_NAME);
     await database.open();
-    expect(database.verno).toBe(7);
-    expect(DB_VERSION).toBe(7);
+    expect(database.verno).toBe(DB_VERSION);
 
     for (const [name, rows] of Object.entries(v6Rows)) {
       if (name !== 'switchLogs') {
@@ -168,7 +167,7 @@ describe('版6 → 版7(SPEC.md 3.5)', () => {
       expect(await storedVersion()).toBe(6);
 
       const snapshot = await getBeforeUpdateSnapshot(backupDatabase);
-      expect(snapshot).toMatchObject({ fromVersion: 6, toVersion: 7, savedAt: now.toISOString(), noticePending: true });
+      expect(snapshot).toMatchObject({ fromVersion: 6, toVersion: DB_VERSION, savedAt: now.toISOString(), noticePending: true });
       const parsed = parseBackup(snapshot?.text ?? '');
       if (!parsed.ok) {
         throw new Error(parsed.reason);
@@ -198,7 +197,7 @@ describe('版6 → 版7(SPEC.md 3.5)', () => {
       expect(restored.bucketAlters.map((entry) => entry.alterId)).toEqual(['alter-a', 'alter-b']);
     });
 
-    it('すでに版7なら写しを作り直さず、前の写しはそのまま残る', async () => {
+    it('すでに今の版なら写しを作り直さず、前の写しはそのまま残る', async () => {
       await writeV6();
       await prepareDatabase(now, { dbName: DB_NAME, backupDatabase });
       database = new AppDatabase(DB_NAME);

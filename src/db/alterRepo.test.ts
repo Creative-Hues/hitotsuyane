@@ -262,6 +262,20 @@ describe('人格の保存', () => {
       expect(await deleteAlter(database, a.id)).toBe(false);
     });
 
+    it('受診の記録の「受診した人格」に入っている人格も削除されない(SPEC.md 3.1・8.5)', async () => {
+      const a = await addAlter(database, { name: 'A', color: '#111111', categoryId: null }, now);
+      await database.clinicVisits.add({
+        id: 'v1',
+        visitedOn: '2026-10-01',
+        alterIds: [a.id],
+        staffIds: [],
+        createdAt: now.toISOString(),
+      });
+
+      expect(await countAlterRecords(database, a.id)).toBe(1);
+      expect(await deleteAlter(database, a.id)).toBe(false);
+    });
+
     it('服薬記録だけがある人格も削除されない', async () => {
       const a = await addAlter(database, { name: 'A', color: '#111111', categoryId: null }, now);
       await database.medicationIntakes.add({

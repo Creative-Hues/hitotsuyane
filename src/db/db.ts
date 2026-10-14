@@ -9,6 +9,8 @@ import type {
   ClinicNote,
   ClinicNoteCategory,
   ClinicNoteComment,
+  ClinicStaff,
+  ClinicVisit,
   CompletionRecord,
   Medication,
   MedicationIntake,
@@ -21,6 +23,7 @@ import type {
   Task,
 } from '../lib/types';
 import { buildInitialBucketAlters } from '../lib/bucket';
+import { buildInitialClinicStaff } from '../lib/clinicVisits';
 import { buildInitialMedicationTimings } from '../lib/medicationTimings';
 import { buildInitialSwitchTags, fillFromAlters } from '../lib/switchLog';
 import {
@@ -50,6 +53,8 @@ export class AppDatabase extends Dexie {
   switchTags!: EntityTable<SwitchTag, 'id'>;
   switchLogs!: EntityTable<SwitchLog, 'id'>;
   bucketAlters!: EntityTable<BucketAlter, 'alterId'>;
+  clinicVisits!: EntityTable<ClinicVisit, 'id'>;
+  clinicStaff!: EntityTable<ClinicStaff, 'id'>;
   meta!: EntityTable<AppMeta, 'key'>;
 
   // データベースの名前は src/lib/appTarget.ts で決める(SPEC.md 19章・21章)。
@@ -110,7 +115,13 @@ export class AppDatabase extends Dexie {
     this.version(7)
       .stores({ bucketAlters: 'alterId' })
       .upgrade((tx) => upgradeToV7(tx, new Date()));
-    // 新しく入れたとき(版1〜7の upgrade を通らない)の最初のデータ
+    // 版8:SPEC.md 3.5(2026年10月のブラッシュアップ フェーズ3)。
+    // 受診の記録と、話した相手の選択肢のテーブルを足し、最初の選択肢を入れる。今のデータは書き換えない
+    // (版を上げる前の移行前のバックアップは、版7と同じく beforeUpdate.ts で保存する)
+    this.version(8)
+      .stores({ clinicVisits: 'id, visitedOn', clinicStaff: 'id, order' })
+      .upgrade((tx) => addInitialClinicStaff(tx, new Date()));
+    // 新しく入れたとき(版1〜8の upgrade を通らない)の最初のデータ
     // 区分は空で始め、受診メモの分類は呼び方を使わない名前にする(SPEC.md 14章③)
     this.on('populate', async (tx) => {
       const now = new Date();
@@ -120,6 +131,7 @@ export class AppDatabase extends Dexie {
       await addInitialMedicationTimings(tx, now);
       await addMissingProfileSections(tx, now);
       await addInitialSwitchTags(tx, now);
+      await addInitialClinicStaff(tx, now);
     });
   }
 }
@@ -148,6 +160,11 @@ async function addInitialMedicationTimings(tx: Transaction, now: Date): Promise<
   await tx
     .table<MedicationTiming, string>('medicationTimings')
     .bulkAdd(buildInitialMedicationTimings(now.toISOString()));
+}
+
+/** 話した相手の最初の選択肢を入れる(SPEC.md 8.6) */
+async function addInitialClinicStaff(tx: Transaction, now: Date): Promise<void> {
+  await tx.table<ClinicStaff, string>('clinicStaff').bulkAdd(buildInitialClinicStaff(now.toISOString()));
 }
 
 /** 最初のきっかけを入れる(SPEC.md 17.2) */

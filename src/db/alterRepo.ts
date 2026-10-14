@@ -76,7 +76,7 @@ export async function reorderAlters(database: AppDatabase, orderedIds: readonly 
  * その人格の完了記録・服薬記録・受診メモ・コメント・バケット・交代の記録の件数の合計(SPEC.md 3.1)。
  * バケットは、その人格のリストの項目(削除済みも含む)と、協力者に入っている項目を数える。
  * 「バケットに出す人格」に入っているだけなら数えない。
- * 交代の記録は、交代した人格と、交代前の人格の両方を数える。
+ * 交代の記録は、交代した人格と、交代前の人格の両方を数える。受診の記録は、受診した人格を数える。
  * 全件を見て数える(記録は1年分だけ、メモ・コメント・バケットも多くはならないため)
  */
 export async function countAlterRecords(database: AppDatabase, id: string): Promise<number> {
@@ -87,6 +87,7 @@ export async function countAlterRecords(database: AppDatabase, id: string): Prom
     database.clinicNoteComments.filter((comment) => comment.alterId === id).count(),
     database.bucketItems.filter((item) => item.alterId === id || item.helperAlterIds.includes(id)).count(),
     database.switchLogs.filter((log) => log.alterId === id || log.fromAlterId === id).count(),
+    database.clinicVisits.filter((visit) => visit.alterIds.includes(id)).count(),
   ]);
   return counts.reduce((sum, count) => sum + count, 0);
 }
@@ -117,6 +118,7 @@ export async function deleteAlter(database: AppDatabase, id: string): Promise<bo
     database.switchLogs,
     database.profileSections,
     database.bucketAlters,
+    database.clinicVisits,
   ];
   return database.transaction('rw', tables, async () => {
     if ((await countAlterRecords(database, id)) > 0) {

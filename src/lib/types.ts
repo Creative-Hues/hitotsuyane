@@ -252,3 +252,24 @@ export interface AppMeta {
   key: 'lastBackupExportedAt' | 'showStats' | 'altersTerm';
   value: string;
 }
+
+/** 受診の記録(永続データ。自動では削除しない。SPEC.md 8.5) */
+export interface ClinicVisit {
+  id: string;
+  /** 受診した日('YYYY-MM-DD'。論理日) */
+  visitedOn: string;
+  /** 受診した人格のID(0個は「わからない」) */
+  alterIds: string[];
+  /** 話した相手(ClinicStaff)のID(0個は「わからない」) */
+  staffIds: string[];
+  /** 記録した日時(ISO形式) */
+  createdAt: string;
+}
+
+/** 話した相手の選択肢(永続データ。SPEC.md 8.6) */
+export interface ClinicStaff {
+  id: string;
+  name: string;
+  order: number;
+  createdAt: string;
+}

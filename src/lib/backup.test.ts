@@ -12,6 +12,7 @@ import {
   type BackupData,
 } from './backup';
 import { buildInitialMedicationTimings } from './medicationTimings';
+import { buildInitialClinicStaff } from './clinicVisits';
 import { buildInitialSwitchTags } from './switchLog';
 
 function emptyData(): BackupData {
@@ -32,6 +33,8 @@ function emptyData(): BackupData {
     switchTags: [],
     switchLogs: [],
     bucketAlters: [],
+    clinicVisits: [],
+    clinicStaff: [],
   };
 }
 
@@ -619,5 +622,66 @@ describe('更新前のデータ(SPEC.md 12章・18.4)', () => {
   it('呼び方が保存されていなければ「人格」として入れる', () => {
     const result = parseBackup(buildRawBackupText(emptyData() as unknown as Record<string, unknown[]>, null, now));
     expect(result.ok && result.backup.settings).toEqual({ altersTerm: '人格' });
+  });
+});
+
+describe('受診の記録と、話した相手の選択肢(SPEC.md 8.5・8.6・12章)', () => {
+  function data(): BackupData {
+    const result = emptyData();
+    result.alters.push({
+      id: 'alter-a',
+      name: '人格A',
+      color: '#4a90d9',
+      hidden: false,
+      order: 0,
+      createdAt: '2026-09-01T00:00:00.000Z',
+      reading: '',
+      categoryId: null,
+      age: '',
+      gender: '',
+      identify: '',
+    });
+    result.clinicStaff.push(...buildInitialClinicStaff('2026-09-01T00:00:00.000Z'));
+    result.clinicVisits.push(
+      {
+        id: 'v1',
+        visitedOn: '2026-10-01',
+        alterIds: ['alter-a'],
+        staffIds: ['clinic-staff-doctor', 'clinic-staff-nurse'],
+        createdAt: '2026-10-01T05:00:00.000Z',
+      },
+      // 「わからない」は空
+      { id: 'v2', visitedOn: '2026-10-08', alterIds: [], staffIds: [], createdAt: '2026-10-08T05:00:00.000Z' },
+    );
+    return result;
+  }
+
+  it('書き出したとおりに読み込める', () => {
+    const result = parseBackup(serializeBackup(buildBackup(data(), now)));
+    expect(result.ok && result.backup.data).toEqual(data());
+  });
+
+  it('受診の記録がない古いファイルは「記録なし」、選択肢がないファイルは最初の4つとして読み込む', () => {
+    const json = exportedJson(data());
+    delete (json.data as Record<string, unknown>).clinicVisits;
+    delete (json.data as Record<string, unknown>).clinicStaff;
+    const result = parseBackup(JSON.stringify(json));
+    expect(result.ok && result.backup.data.clinicVisits).toEqual([]);
+    expect(result.ok && result.backup.data.clinicStaff).toEqual(buildInitialClinicStaff(now.toISOString()));
+  });
+
+  it('ない人格・ない話した相手を指す受診の記録があるファイルは読み込まない', () => {
+    const noAlter = data();
+    noAlter.clinicVisits[1].alterIds = ['deleted'];
+    expect(parseBackup(serializeBackup(buildBackup(noAlter, now)))).toEqual({
+      ok: false,
+      reason: '「受診の記録」の2件目の人格が見つかりません',
+    });
+    const noStaff = data();
+    noStaff.clinicVisits[0].staffIds = ['deleted'];
+    expect(parseBackup(serializeBackup(buildBackup(noStaff, now)))).toEqual({
+      ok: false,
+      reason: '「受診の記録」の1件目の話した相手が見つかりません',
+    });
   });
 });
