@@ -874,6 +874,14 @@ textarea {
   font-size: 0.875rem;
 }
 
+/* 「受診した」「受診の履歴」(SPEC.md 8.5)。診察用の表示の下に横に2つ並べる */
+.clinic-visit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 /* 受診メモの見出しの下の「診察用の表示」。診察室ですぐ押せるよう、横いっぱいの大きなボタンにする */
 .clinic-view-button {
   width: 100%;

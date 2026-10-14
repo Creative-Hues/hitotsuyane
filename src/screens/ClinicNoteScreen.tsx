@@ -2,6 +2,7 @@
 // 「まだ話していないもの」を上、「話したもの」を下に分ける(8.2)
 // 各メモの下にコメント(8.4)を古い順に並べる
 // 見出しの下に「分類の設定」(8.1)と、横いっぱいの大きな「診察用の表示」ボタン(8.3)
+// その下に「受診した」「受診の履歴」(8.5)を並べる
 import { useState, type ReactNode } from 'react';
 import { ClinicNoteItem } from '../components/clinic/ClinicNoteItem';
 import { CommentList } from '../components/clinic/CommentList';
@@ -16,10 +17,17 @@ import { CategorySettingsScreen } from './CategorySettingsScreen';
 import { ClinicNoteCommentEditScreen } from './ClinicNoteCommentEditScreen';
 import { ClinicNoteEditScreen } from './ClinicNoteEditScreen';
 import { ClinicViewScreen } from './ClinicViewScreen';
+import { ClinicVisitEditScreen } from './ClinicVisitEditScreen';
+import { ClinicVisitHistoryScreen } from './ClinicVisitHistoryScreen';
 
-/** 表示中の画面:一覧 / メモの編集 / コメントの編集(id が null なら新しく書く) / 分類の設定 / 診察用の表示 */
+/**
+ * 表示中の画面:一覧 / メモの編集 / コメントの編集(id が null なら新しく書く) / 分類の設定 / 診察用の表示 /
+ * 受診した(受診の記録の入力) / 受診の履歴
+ */
 type View =
   | { kind: 'list' }
+  | { kind: 'visit' }
+  | { kind: 'visits' }
   | { kind: 'categories' }
   | { kind: 'clinicView' }
   | { kind: 'note'; id: string | null }
@@ -35,6 +43,7 @@ export function ClinicNoteScreen({ tabHeader }: Props) {
   const categories = useLiveQuery(() => db.clinicNoteCategories.toArray());
   const notes = useLiveQuery(() => db.clinicNotes.toArray());
   const comments = useLiveQuery(() => db.clinicNoteComments.toArray());
+  const staff = useLiveQuery(() => db.clinicStaff.toArray());
   const [view, setView] = useState<View>({ kind: 'list' });
   const rememberScroll = useListScroll(view.kind === 'list');
 
@@ -44,7 +53,7 @@ export function ClinicNoteScreen({ tabHeader }: Props) {
   };
   const backToList = () => setView({ kind: 'list' });
 
-  if (!alters || !categories || !notes || !comments) {
+  if (!alters || !categories || !notes || !comments || !staff) {
     return (
       <main className="app">
         {tabHeader}
@@ -55,6 +64,13 @@ export function ClinicNoteScreen({ tabHeader }: Props) {
 
   if (view.kind === 'clinicView') {
     return <ClinicViewScreen onBack={backToList} />;
+  }
+
+  if (view.kind === 'visit') {
+    return <ClinicVisitEditScreen alters={alters} staff={staff} onBack={backToList} />;
+  }
+  if (view.kind === 'visits') {
+    return <ClinicVisitHistoryScreen onBack={backToList} />;
   }
 
   if (view.kind === 'categories') {
@@ -143,6 +159,14 @@ export function ClinicNoteScreen({ tabHeader }: Props) {
       <button type="button" className="clinic-view-button" onClick={() => open({ kind: 'clinicView' })}>
         診察用の表示
       </button>
+      <div className="clinic-visit-actions">
+        <button type="button" onClick={() => open({ kind: 'visit' })}>
+          受診した
+        </button>
+        <button type="button" onClick={() => open({ kind: 'visits' })}>
+          受診の履歴
+        </button>
+      </div>
       <button type="button" className="add-button" onClick={() => open({ kind: 'note', id: null })}>
         ＋ メモを書く
       </button>
