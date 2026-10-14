@@ -50,6 +50,12 @@ input[type='color'] {
   margin-bottom: 16px;
 }
 
+/* 見出しが長くても、「‹ 戻る」などのボタンは折り返さず縮めない(見出しのほうを折り返す) */
+.screen-header > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .settings-section {
   margin-bottom: 32px;
 }
