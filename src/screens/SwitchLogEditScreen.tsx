@@ -1,17 +1,19 @@
-// 交代の記録の編集画面(SPEC.md 17.4):人格・交代した時刻・きっかけを直す。削除もここから
+// 交代の記録の編集画面(SPEC.md 17.4):人格・交代した時刻・きっかけ・交代前の人格を直す。削除もここから
 // 気づいた時刻は直せない(表示だけ)
+// 交代前の人格を選ぶと「確認した」にする(推測と同じ人格を選び直しても)。選ばなければ今の決め方のまま
 import { useState, type FormEvent } from 'react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { TagChoices } from '../components/switch/TagChoices';
 import { UNKNOWN_SEGMENT_COLOR } from '../components/switch/SwitchStatsView';
 import { db } from '../db/db';
-import { deleteSwitchLog, updateSwitchLog } from '../db/switchLogRepo';
+import { deleteSwitchLog, updateSwitchLog, type FromAlterChoice } from '../db/switchLogRepo';
 import { UNKNOWN_ALTER_NAME } from '../lib/completionLabel';
 import { parseDateTimeLocal, toDateTimeLocalValue } from '../lib/period';
 import { showSaveError } from '../lib/showError';
-import { resolveSwitchedAt } from '../lib/switchLog';
+import { resolveFromAlter, resolveSwitchedAt, switchAlterLabel } from '../lib/switchLog';
 import { formatDateTime } from '../lib/timeFormat';
 import type { Alter, SwitchLog, SwitchTag } from '../lib/types';
+import { useTerm } from '../hooks/useTerm';
 
 interface Props {
   log: SwitchLog;
@@ -33,6 +35,20 @@ export function SwitchLogEditScreen({ log, alters, tags, onBack }: Props) {
   const [tagIds, setTagIds] = useState<string[]>(log.tagIds);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { t } = useTerm();
+  // 交代前の人格。選んだら(同じ人格を押し直しても)「確認した」にする
+  const [fromValue, setFromValue] = useState(log.fromAlterId ?? UNKNOWN_VALUE);
+  const [fromTouched, setFromTouched] = useState(false);
+  const currentFrom = switchAlterLabel(resolveFromAlter(log, alters));
+
+  // 交代前の人格の選択肢:非表示でない人格と、この記録の交代前の人格(非表示でも)。並び順
+  const fromChoices = alters
+    .filter((alter) => !alter.hidden || alter.id === log.fromAlterId)
+    .sort((a, b) => a.order - b.order);
+  const chooseFrom = (value: string) => {
+    setFromValue(value);
+    setFromTouched(true);
+  };
 
   // 選択肢:非表示でない人格と、この記録の人格(非表示でも)。並び順
   const alterChoices = alters
@@ -61,13 +77,22 @@ export function SwitchLogEditScreen({ log, alters, tags, onBack }: Props) {
       }
       switchedAt = resolved;
     }
+    // 交代前の人格を選んでいなければ、今の決め方(推測なら計算し直す)のまま
+    const from: FromAlterChoice = fromTouched
+      ? { kind: 'confirmed', alterId: fromValue === UNKNOWN_VALUE ? null : fromValue }
+      : { kind: 'guess' };
     try {
-      await updateSwitchLog(db, log.id, {
-        alterId: alterValue === UNKNOWN_VALUE ? null : alterValue,
-        switchedAt,
-        // 見つからないきっかけは外す
-        tagIds: tagIds.filter((id) => tags.some((tag) => tag.id === id)),
-      }, { kind: 'guess' });
+      await updateSwitchLog(
+        db,
+        log.id,
+        {
+          alterId: alterValue === UNKNOWN_VALUE ? null : alterValue,
+          switchedAt,
+          // 見つからないきっかけは外す
+          tagIds: tagIds.filter((id) => tags.some((tag) => tag.id === id)),
+        },
+        from,
+      );
       onBack();
     } catch (saveError) {
       showSaveError(saveError);
@@ -115,6 +140,39 @@ export function SwitchLogEditScreen({ log, alters, tags, onBack }: Props) {
               name="switch-alter"
               checked={alterValue === UNKNOWN_VALUE}
               onChange={() => setAlterValue(UNKNOWN_VALUE)}
+            />
+            <span className="color-dot" style={{ backgroundColor: UNKNOWN_SEGMENT_COLOR }} />
+            {UNKNOWN_ALTER_NAME}
+          </label>
+        </fieldset>
+        <fieldset className="field">
+          <legend>{t('交代前の人格')}</legend>
+          <p className="settings-note">
+            交代前:{currentFrom.name}
+            {log.fromAlterSource === 'guessed' && '(推測)'}
+          </p>
+          {fromChoices.map((alter) => (
+            <label key={alter.id} className="choice">
+              <input
+                type="radio"
+                name="switch-from"
+                checked={fromValue === alter.id}
+                // 選んである人格を押し直したときも「確認した」にするため、onClick でも受ける
+                onChange={() => chooseFrom(alter.id)}
+                onClick={() => chooseFrom(alter.id)}
+              />
+              <span className="color-dot" style={{ backgroundColor: alter.color }} />
+              {alter.name}
+              {alter.hidden && '(非表示)'}
+            </label>
+          ))}
+          <label className="choice">
+            <input
+              type="radio"
+              name="switch-from"
+              checked={fromValue === UNKNOWN_VALUE}
+              onChange={() => chooseFrom(UNKNOWN_VALUE)}
+              onClick={() => chooseFrom(UNKNOWN_VALUE)}
             />
             <span className="color-dot" style={{ backgroundColor: UNKNOWN_SEGMENT_COLOR }} />
             {UNKNOWN_ALTER_NAME}

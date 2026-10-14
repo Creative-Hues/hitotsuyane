@@ -331,3 +331,37 @@ export function resolveSwitchAlter(log: Pick<SwitchLog, 'alterId'>, alters: read
   return log.alterId === null ? null : (alters.find((alter) => alter.id === log.alterId) ?? null);
 }
 
+/** 記録の交代前の人格(非表示の人格も名前と色で出す。見つからないときは「わからない」) */
+export function resolveFromAlter(log: Pick<SwitchLog, 'fromAlterId'>, alters: readonly Alter[]): Alter | null {
+  return resolveSwitchAlter({ alterId: log.fromAlterId }, alters);
+}
+
+/**
+ * 記録するときに出す、交代前の人格の文(SPEC.md 17.1)
+ * - ask:「[人格A]さんからの交代で合っていますか?」
+ * - same:「前の記録も[人格A]さんです。間にほかの人がいたら修正してください。」(今回記録する人格と同じ)
+ * - unknown:「交代前:わからない」(前の記録がない・前の記録の人格が「わからない」)
+ * - confirmed:「交代前:[人格A]」(「交代前の人格を修正」で選んだあと)
+ */
+export type FromAlterNotice =
+  | { kind: 'ask'; alter: Alter }
+  | { kind: 'same'; alter: Alter }
+  | { kind: 'unknown' }
+  | { kind: 'confirmed'; alter: Alter | null };
+
+/**
+ * 交代前の人格の文を決める
+ * @param fromAlter 交代前の人格(「わからない」・見つからないときは null)
+ * @param toAlterId 今回記録する人格(「わからない」は null)
+ * @param confirmed 「交代前の人格を修正」で選んだか
+ */
+export function fromAlterNotice(fromAlter: Alter | null, toAlterId: string | null, confirmed: boolean): FromAlterNotice {
+  if (confirmed) {
+    return { kind: 'confirmed', alter: fromAlter };
+  }
+  if (fromAlter === null) {
+    return { kind: 'unknown' };
+  }
+  return fromAlter.id === toAlterId ? { kind: 'same', alter: fromAlter } : { kind: 'ask', alter: fromAlter };
+}
+

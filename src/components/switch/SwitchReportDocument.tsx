@@ -3,6 +3,7 @@ import { formatCalendarDateSlash, formatClockInLogicalDay, formatLogicalDateHead
 import { countText, statsMonthLabel } from '../../lib/stats';
 import {
   groupSwitchLogsByDay,
+  resolveFromAlter,
   resolveSwitchAlter,
   switchAlterLabel,
   switchLogsInMonth,
@@ -76,7 +77,9 @@ export function SwitchReportDocument({ month, stats, logs, alters, tags, created
                       {log.switchedAt === null && '(気づいた時刻)'}
                     </td>
                     <td>
-                      <AlterLabel alter={resolveSwitchAlter(log, alters)} />
+                      {/* 誰から誰に(SPEC.md 17.6)。推測のままの記録は「(推測)」を添える */}
+                      <AlterLabel alter={resolveFromAlter(log, alters)} /> → <AlterLabel alter={resolveSwitchAlter(log, alters)} />
+                      {log.fromAlterSource === 'guessed' && '(推測)'}
                     </td>
                     <td>{tagNamesOf(log, tags).join('、')}</td>
                   </tr>

@@ -5,9 +5,11 @@ import {
   clampSwitchMonth,
   compareSwitchLogs,
   fillFromAlters,
+  fromAlterNotice,
   guessFromAlterId,
   recomputeGuessedFromAlters,
   groupSwitchLogsByDay,
+  resolveFromAlter,
   resolveSwitchedAt,
   switchLogsInMonth,
   switchLogTime,
@@ -306,5 +308,27 @@ describe('交代前の人格の推測(SPEC.md 17.3)', () => {
       ['a', null, 'guessed'],
       ['c', 'B', 'guessed'],
     ]);
+  });
+});
+
+describe('記録するときの交代前の人格の文(SPEC.md 17.1)', () => {
+  const a = alter('A', 0);
+
+  it('推測が人格なら確かめる文、今回と同じ人格なら「前の記録も」の文、わからなければ「わからない」', () => {
+    expect(fromAlterNotice(a, 'B', false)).toEqual({ kind: 'ask', alter: a });
+    expect(fromAlterNotice(a, 'A', false)).toEqual({ kind: 'same', alter: a });
+    expect(fromAlterNotice(null, 'A', false)).toEqual({ kind: 'unknown' });
+  });
+
+  it('「交代前の人格を修正」で選んだあとは、選んだ人格(わからないも)をそのまま出す', () => {
+    expect(fromAlterNotice(a, 'A', true)).toEqual({ kind: 'confirmed', alter: a });
+    expect(fromAlterNotice(null, 'A', true)).toEqual({ kind: 'confirmed', alter: null });
+  });
+
+  it('交代前の人格は、非表示の人格も名前と色で出し、見つからなければ「わからない」', () => {
+    const hidden = alter('H', 1, true);
+    expect(resolveFromAlter({ fromAlterId: 'H' }, [a, hidden])).toBe(hidden);
+    expect(resolveFromAlter({ fromAlterId: 'deleted' }, [a])).toBeNull();
+    expect(resolveFromAlter({ fromAlterId: null }, [a])).toBeNull();
   });
 });

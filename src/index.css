@@ -1565,6 +1565,27 @@ body {
   margin: 0 0 12px;
 }
 
+/* 記録するときの交代前の人格(SPEC.md 17.1)。きっかけの上に、区切って出す */
+.from-alter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ccc;
+}
+
+.from-alter__text {
+  margin: 0;
+  line-height: 1.8;
+}
+
+/* 一覧の「[交代前] → [交代した人格]」。長い名前でも折り返す */
+.switch-entry__alters {
+  flex-wrap: wrap;
+}
+
 .switch-sheet__actions {
   display: flex;
   flex-direction: column;

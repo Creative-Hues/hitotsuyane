@@ -14,18 +14,14 @@ import {
   buildSwitchStats,
   clampSwitchMonth,
   groupSwitchLogsByDay,
-  resolveSwitchAlter,
-  switchAlterLabel,
   switchLogsInMonth,
-  switchLogTime,
   switchMonthRange,
-  tagNamesOf,
 } from '../lib/switchLog';
-import { formatClockInLogicalDay, formatLogicalDateHeading } from '../lib/timeFormat';
+import { formatLogicalDateHeading } from '../lib/timeFormat';
 import { SWITCH_LOG_NOTICE } from '../lib/about';
 import { SwitchLogEditScreen } from './SwitchLogEditScreen';
 import { SwitchTagSettingsScreen } from './SwitchTagSettingsScreen';
-import { AlterNameLabel } from '../components/common/AlterNameLabel';
+import { SwitchLogRow } from '../components/switch/SwitchLogRow';
 
 /** 表示中の画面:一覧 / 記録の編集 / きっかけの設定 */
 type View = { kind: 'list' } | { kind: 'edit'; id: string } | { kind: 'tags' };
@@ -120,27 +116,17 @@ export function SwitchLogScreen() {
               <div key={day.logicalDate} className="switch-day">
                 <h3 className="alter-group__heading">{formatLogicalDateHeading(day.logicalDate)}</h3>
                 <ul className="item-list">
-                  {day.logs.map((log) => {
-                    const { name, color } = switchAlterLabel(resolveSwitchAlter(log, alters));
-                    return (
-                      <li key={log.id}>
-                        <button type="button" className="switch-entry" onClick={() => open({ kind: 'edit', id: log.id })}>
-                          <span className="history-entry__time">
-                            {formatClockInLogicalDay(switchLogTime(log), day.logicalDate)}
-                          </span>
-                          <span className="switch-entry__body">
-                            <span className="stats-list__alter">
-                              <AlterNameLabel name={name} color={color} />
-                            </span>
-                            <span className="switch-entry__sub">
-                              きっかけ:{tagNamesOf(log, tags).join('、')}
-                              {log.switchedAt === null && '(時刻は気づいた時刻)'}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
+                  {day.logs.map((log) => (
+                    <li key={log.id}>
+                      <SwitchLogRow
+                        log={log}
+                        logicalDate={day.logicalDate}
+                        alters={alters}
+                        tags={tags}
+                        onOpen={(target) => open({ kind: 'edit', id: target.id })}
+                      />
+                    </li>
+                  ))}
                 </ul>
               </div>
             ))}
