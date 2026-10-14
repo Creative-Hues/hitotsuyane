@@ -1,11 +1,9 @@
-// 交代の記録のカレンダー(SPEC.md 17.7)。週の始まりは日曜
+// 交代の記録のカレンダー(SPEC.md 17.7)。週の始まりはアプリ全体と同じ(月曜)
 // 各日付のマスに、その日に記録のあった人格の色の円を最大9個(3×3)並べる。10人以上は8個と「+」
 // 記録のある日付を押すと、その日の記録の一覧を開く
-import type { CalendarDay, CalendarWeek } from '../../lib/switchCalendar';
+import { calendarWeekdayLabels, type CalendarDay, type CalendarWeek } from '../../lib/switchCalendar';
 import type { LogicalDate } from '../../lib/period';
 import { UNKNOWN_SEGMENT_COLOR } from './SwitchStatsView';
-
-const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'] as const;
 
 interface Props {
   weeks: CalendarWeek[];
@@ -49,7 +47,7 @@ export function SwitchCalendarView({ weeks, onOpenDate }: Props) {
   return (
     <div className="switch-calendar" role="grid" aria-label="交代の記録のカレンダー">
       <div className="switch-calendar__row" role="row">
-        {WEEKDAY_LABELS.map((label) => (
+        {calendarWeekdayLabels().map((label) => (
           <span key={label} className="switch-calendar__weekday" role="columnheader">
             {label}
           </span>

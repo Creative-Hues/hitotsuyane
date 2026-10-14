@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { logicalDatesOfMonth, weekdayOfLogicalDate } from './period';
-import { buildSwitchCalendar, switchLogsOnDate } from './switchCalendar';
+import { daysSinceWeekStart, logicalDatesOfMonth, toLogicalWeek, weekdayOfLogicalDate } from './period';
+import { buildSwitchCalendar, calendarWeekdayLabels, switchLogsOnDate } from './switchCalendar';
 import type { Alter, SwitchLog } from './types';
 
 function alter(id: string, order: number, hidden = false): Alter {
@@ -38,6 +38,13 @@ describe('カレンダーの日付(SPEC.md 17.7)', () => {
     expect(weekdayOfLogicalDate('2026-11-01')).toBe(0); // 日曜
   });
 
+  it('週の始まり(月曜)から何日目か。日曜始まりも渡せる', () => {
+    expect(daysSinceWeekStart('2026-10-12')).toBe(0); // 月曜
+    expect(daysSinceWeekStart('2026-10-18')).toBe(6); // 日曜
+    expect(daysSinceWeekStart('2026-10-18', 0)).toBe(0);
+    expect(toLogicalWeek(new Date(2026, 9, 18, 12, 0), 0)).toBe('2026-10-18');
+  });
+
   it('月の1日から月末まで(うるう年の2月も)', () => {
     expect(logicalDatesOfMonth('2026-10')).toHaveLength(31);
     expect(logicalDatesOfMonth('2028-02').at(-1)).toBe('2028-02-29');
@@ -48,13 +55,20 @@ describe('カレンダーの日付(SPEC.md 17.7)', () => {
 describe('交代の記録のカレンダー(SPEC.md 17.7)', () => {
   const alters = [alter('B', 1), alter('A', 0), alter('H', 2, true)];
 
-  it('週の始まりは日曜で、1日の前と月末の後は空のマス', () => {
+  it('週の始まりは月曜(アプリ全体と同じ)で、1日の前と月末の後は空のマス', () => {
     const weeks = buildSwitchCalendar({ logs: [], month: '2026-10', alters });
+    expect(calendarWeekdayLabels()).toEqual(['月', '火', '水', '木', '金', '土', '日']);
     expect(weeks).toHaveLength(5);
     expect(weeks.every((week) => week.length === 7)).toBe(true);
     // 2026年10月1日は木曜
+    expect(weeks[0].map((cell) => cell?.day ?? null)).toEqual([null, null, null, 1, 2, 3, 4]);
+    expect(weeks[4].map((cell) => cell?.day ?? null)).toEqual([26, 27, 28, 29, 30, 31, null]);
+  });
+
+  it('週の始まりの曜日を変えると、見出しとマスの並びも変わる(将来の設定のため)', () => {
+    const weeks = buildSwitchCalendar({ logs: [], month: '2026-10', alters, weekStartDay: 0 });
+    expect(calendarWeekdayLabels(0)).toEqual(['日', '月', '火', '水', '木', '金', '土']);
     expect(weeks[0].map((cell) => cell?.day ?? null)).toEqual([null, null, null, null, 1, 2, 3]);
-    expect(weeks[4].map((cell) => cell?.day ?? null)).toEqual([25, 26, 27, 28, 29, 30, 31]);
   });
 
   it('その日に初めて出た順に円を並べ、同じ人格は1つ、「わからない」は色なし(灰色)', () => {

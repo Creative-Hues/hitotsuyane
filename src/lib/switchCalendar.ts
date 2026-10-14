@@ -1,6 +1,6 @@
 // 交代の記録のカレンダー(SPEC.md 17.7)。すべて純粋関数(同じ入力なら同じ結果)。
 // 日付の計算は period.ts の関数を通す
-import { logicalDatesOfMonth, toLogicalDate, weekdayOfLogicalDate, type LogicalDate } from './period';
+import { daysSinceWeekStart, logicalDatesOfMonth, toLogicalDate, WEEK_START_DAY, type LogicalDate } from './period';
 import { compareSwitchLogs, switchLogTime } from './switchLog';
 import type { Alter, SwitchLog } from './types';
 
@@ -27,11 +27,19 @@ export interface CalendarDay {
   more: boolean;
 }
 
-/** カレンダーの1週(日曜〜土曜の7マス。月の外のマスは null) */
+/** 曜日の名前(日曜=0) */
+const WEEKDAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'] as const;
+
+/** カレンダーの見出しの曜日(週の始まりの曜日から。SPEC.md 4.2・17.7) */
+export function calendarWeekdayLabels(weekStartDay: number = WEEK_START_DAY): string[] {
+  return WEEKDAY_NAMES.map((_, index) => WEEKDAY_NAMES[(weekStartDay + index) % 7]);
+}
+
+/** カレンダーの1週(週の始まりの曜日から7マス。月の外のマスは null) */
 export type CalendarWeek = (CalendarDay | null)[];
 
 /**
- * その論理月のカレンダーを作る(SPEC.md 17.7)。週の始まりは日曜。
+ * その論理月のカレンダーを作る(SPEC.md 17.7)。週の始まりはアプリ全体と同じ(月曜。period.ts の WEEK_START_DAY)。
  * 各日付のマスには、その日(論理日。記録の時刻で振り分ける)に記録のあった人格の円を、初めて出た順に並べる
  * @param alters すべての人格(非表示も含む)
  */
@@ -39,8 +47,10 @@ export function buildSwitchCalendar(input: {
   logs: readonly SwitchLog[];
   month: string;
   alters: readonly Alter[];
+  /** 週の始まりの曜日(ふつうは渡さない) */
+  weekStartDay?: number;
 }): CalendarWeek[] {
-  const { month, alters } = input;
+  const { month, alters, weekStartDay = WEEK_START_DAY } = input;
   const alterById = new Map(alters.map((alter) => [alter.id, alter]));
   // 日ごとに、記録の時刻の古い順で、初めて出た人格を集める(「わからない」・見つからない人格は null)
   const dotsByDate = new Map<LogicalDate, CalendarDot[]>();
@@ -73,7 +83,10 @@ export function buildSwitchCalendar(input: {
   });
 
   // 1日の前を空けて、7マスずつに分ける(最後の週も7マスにそろえる)
-  const cells: (CalendarDay | null)[] = [...Array<null>(weekdayOfLogicalDate(days[0].logicalDate)).fill(null), ...days];
+  const cells: (CalendarDay | null)[] = [
+    ...Array<null>(daysSinceWeekStart(days[0].logicalDate, weekStartDay)).fill(null),
+    ...days,
+  ];
   while (cells.length % 7 !== 0) {
     cells.push(null);
   }

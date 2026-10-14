@@ -52,16 +52,24 @@ export function diffLogicalDays(from: LogicalDate, to: LogicalDate): number {
 }
 
 /**
- * 日時が属する週を、その週の月曜日の論理日で表す。
- * 週は論理日で月曜〜日曜。
+ * 週の始まりの曜日(日曜=0, 月曜=1 … 土曜=6)。アプリ全体の週の区切りは、この1か所で決める(SPEC.md 4.2)。
+ * ToDo の「毎週」・交代のカレンダー・診察用の表示の「今週」は、すべてこれを使う。
+ * 将来「週の始まりを選べる設定」を入れるときは、ここを設定から渡す形にする
  */
-export function toLogicalWeek(date: Date): LogicalDate {
-  const dayNumber = toDayNumber(toLogicalDate(date));
-  const utc = new Date(dayNumber * 86_400_000);
-  // getUTCDay:日曜=0, 月曜=1 … 土曜=6 → 月曜からの日数に直す
-  const daysSinceMonday = (utc.getUTCDay() + 6) % 7;
-  const monday = new Date((dayNumber - daysSinceMonday) * 86_400_000);
-  return formatDate(monday.getUTCFullYear(), monday.getUTCMonth() + 1, monday.getUTCDate());
+export const WEEK_START_DAY = 1;
+
+/** 週の始まりの曜日から、その日が何日目か(0〜6) */
+export function daysSinceWeekStart(logicalDate: LogicalDate, weekStartDay: number = WEEK_START_DAY): number {
+  return (weekdayOfLogicalDate(logicalDate) - weekStartDay + 7) % 7;
+}
+
+/**
+ * 日時が属する週を、その週の始まりの日(月曜)の論理日で表す。
+ * 週は論理日で月曜〜日曜(WEEK_START_DAY)。
+ */
+export function toLogicalWeek(date: Date, weekStartDay: number = WEEK_START_DAY): LogicalDate {
+  const logicalDate = toLogicalDate(date);
+  return addLogicalDays(logicalDate, -daysSinceWeekStart(logicalDate, weekStartDay));
 }
 
 /** 日時が属する月を 'YYYY-MM' 形式で表す(論理日の年月) */
