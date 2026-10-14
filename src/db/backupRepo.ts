@@ -71,7 +71,7 @@ export async function readBackupSettings(database: AppDatabase): Promise<BackupS
  * 今のデータをすべて消し、バックアップの中身に置き換える。
  * 1つのトランザクション(まとめて1回の処理)で行うので、途中で失敗したら何も変わらない。
  * 端末の設定のうち、最後に書き出した日時・集計の表示は置き換えない。
- * 掲示板の「見た」の記録は、読み込んだすべての書き込みを「見た」にする(新着を出さない。SPEC.md 12章・22.4)。
+ * 掲示板の「見た」の記録は、すべての人格について、読み込んだすべての書き込みを「見た」にする(新着を出さない。SPEC.md 12章・22.4)。
  * settings を渡したときは、呼び方も一緒に置き換える
  */
 export async function replaceAllData(database: AppDatabase, data: BackupData, settings?: BackupSettings): Promise<void> {
@@ -105,7 +105,13 @@ export async function replaceAllData(database: AppDatabase, data: BackupData, se
     await database.reactions.bulkAdd(data.reactions);
     await database.boardSeen.clear();
     await database.boardSeen.bulkAdd(
-      data.boardThreads.map((thread) => ({ threadId: thread.id, seenPostAt: latestPostAt(thread, data.boardComments) })),
+      data.alters.flatMap((alter) =>
+        data.boardThreads.map((thread) => ({
+          alterId: alter.id,
+          threadId: thread.id,
+          seenPostAt: latestPostAt(thread, data.boardComments),
+        })),
+      ),
     );
   });
 }

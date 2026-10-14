@@ -269,12 +269,15 @@ describe('バックアップの書き出しと読み込み', () => {
     expect(await readBackupSettings(database)).toEqual({ altersTerm: 'パーツ' });
   });
 
-  it('読み込んだあとは、掲示板のすべての書き込みを「見た」にする(SPEC.md 12章・22.4)', async () => {
-    await database.boardSeen.add({ threadId: 'old-thread', seenPostAt: createdAtOld });
+  it('読み込んだあとは、すべての人格について、掲示板のすべての書き込みを「見た」にする(SPEC.md 12章・22.4)', async () => {
+    await database.boardSeen.add({ alterId: 'alter-a', threadId: 'old-thread', seenPostAt: createdAtOld });
     await replaceAllData(database, fullData());
-    expect((await database.boardSeen.toArray()).sort((a, b) => a.threadId.localeCompare(b.threadId))).toEqual([
-      { threadId: 'th1', seenPostAt: '2026-09-02T00:00:00.000Z' },
-      { threadId: 'th2', seenPostAt: '2026-09-01T00:00:00.000Z' },
+    const rows = (await database.boardSeen.toArray()).map((s) => [s.alterId, s.threadId, s.seenPostAt]);
+    expect(rows.sort((a, b) => `${a[0]}${a[1]}`.localeCompare(`${b[0]}${b[1]}`))).toEqual([
+      ['alter-a', 'th1', '2026-09-02T00:00:00.000Z'],
+      ['alter-a', 'th2', '2026-09-01T00:00:00.000Z'],
+      ['alter-b', 'th1', '2026-09-02T00:00:00.000Z'],
+      ['alter-b', 'th2', '2026-09-01T00:00:00.000Z'],
     ]);
   });
 

@@ -3,6 +3,7 @@ import {
   badgeText,
   boardsWithNew,
   buildHomeBoard,
+  buildViewerOverride,
   buildInitialReactionKinds,
   buildThreadSummaries,
   commentsOfThread,
@@ -13,6 +14,7 @@ import {
   isDuplicateBoardName,
   latestPostAt,
   reactionGroups,
+  resolveBoardViewer,
   resolveSelectedBoard,
   sortBoards,
   validatePostBody,
@@ -40,8 +42,14 @@ function thread(id: string, boardId: string, createdAt: string): BoardThread {
   return { id, boardId, alterId: null, title: id, body: id, createdAt, editedAt: null };
 }
 
-function comment(id: string, threadId: string, createdAt: string, editedAt: string | null = null): BoardComment {
-  return { id, threadId, alterId: null, body: id, createdAt, editedAt };
+function comment(
+  id: string,
+  threadId: string,
+  createdAt: string,
+  editedAt: string | null = null,
+  alterId: string | null = null,
+): BoardComment {
+  return { id, threadId, alterId, body: id, createdAt, editedAt };
 }
 
 const home = buildHomeBoard('2026-09-01T00:00:00.000Z');
@@ -86,27 +94,38 @@ describe('スレッドの一覧と新着(SPEC.md 22.1・22.4)', () => {
   });
 
   it('板ごとに、新しい書き込みがあった順。コメントの件数も数える', () => {
-    const list = buildThreadSummaries({ boardId: HOME_BOARD_ID, threads, comments, seens: [] });
+    const list = buildThreadSummaries({ boardId: HOME_BOARD_ID, threads, comments, seens: [], viewerAlterId: 'A' });
     expect(list.map((s) => [s.thread.id, s.commentCount])).toEqual([
       ['t1', 2],
       ['t2', 1],
     ]);
   });
 
-  it('見たあとに新しい書き込みがあれば新着。直しただけなら新着にしない', () => {
+  it('見たあとに、ほかの人格の新しい書き込みがあれば新着。直しただけなら新着にしない', () => {
     const seens = [
-      { threadId: 't1', seenPostAt: '2026-10-04T00:00:00.000Z' },
-      { threadId: 't2', seenPostAt: '2026-10-03T01:00:00.000Z' },
+      { alterId: 'A', threadId: 't1', seenPostAt: '2026-10-04T00:00:00.000Z' },
+      { alterId: 'A', threadId: 't2', seenPostAt: '2026-10-03T01:00:00.000Z' },
+      // ほかの人格の「見た」は数えない
+      { alterId: 'B', threadId: 't3', seenPostAt: '2026-10-09T00:00:00.000Z' },
     ];
-    const list = buildThreadSummaries({ boardId: null, threads, comments, seens });
+    const list = buildThreadSummaries({ boardId: null, threads, comments, seens, viewerAlterId: 'A' });
     expect(list.map((s) => [s.thread.id, s.hasNew])).toEqual([
       ['t1', true],
       ['t2', false],
-      // 一度も見ていない
+      // 人格A は一度も見ていない
       ['t3', true],
     ]);
-    expect(countNewThreads({ threads, comments, seens })).toBe(2);
-    expect([...boardsWithNew({ threads, comments, seens })].sort()).toEqual(['b', HOME_BOARD_ID].sort());
+    expect(countNewThreads({ threads, comments, seens, viewerAlterId: 'A' })).toBe(2);
+    expect([...boardsWithNew({ threads, comments, seens, viewerAlterId: 'A' })].sort()).toEqual(['b', HOME_BOARD_ID].sort());
+    expect(countNewThreads({ threads, comments, seens, viewerAlterId: 'B' })).toBe(2);
+  });
+
+  it('自分(いま見ている人格)が書いたものは新着にしない。「わからない」として見ているときは、いつも新着', () => {
+    const own = [{ ...thread('m', HOME_BOARD_ID, '2026-10-01T00:00:00.000Z'), alterId: 'A' }];
+    const ownComments = [comment('mc', 'm', '2026-10-02T00:00:00.000Z', null, 'A')];
+    expect(countNewThreads({ threads: own, comments: ownComments, seens: [], viewerAlterId: 'A' })).toBe(0);
+    expect(countNewThreads({ threads: own, comments: ownComments, seens: [], viewerAlterId: 'B' })).toBe(1);
+    expect(countNewThreads({ threads: own, comments: ownComments, seens: [], viewerAlterId: null })).toBe(1);
   });
 
   it('タブのバッジ:0は出さない、99より多いときは「99+」', () => {
@@ -114,6 +133,34 @@ describe('スレッドの一覧と新着(SPEC.md 22.1・22.4)', () => {
     expect(badgeText(5)).toBe('5');
     expect(badgeText(99)).toBe('99');
     expect(badgeText(100)).toBe('99+');
+  });
+});
+
+describe('いま見ている人格(SPEC.md 22.4)', () => {
+  /** 交代した時刻 = 気づいた時刻の記録 */
+  const log = (id: string, alterId: string | null, hour: number) => ({
+    id,
+    alterId,
+    noticedAt: new Date(2026, 9, 14, hour).toISOString(),
+    switchedAt: new Date(2026, 9, 14, hour).toISOString(),
+  });
+
+  it('交代の記録のいちばん新しい記録の人格。記録がなければ「わからない」', () => {
+    expect(resolveBoardViewer([log('1', 'A', 9), log('2', 'B', 11), log('3', 'C', 10)], null)).toBe('B');
+    expect(resolveBoardViewer([], null)).toBeNull();
+    expect(resolveBoardViewer([log('1', null, 9)], null)).toBeNull();
+  });
+
+  it('選び直すと、その人格。新しい交代の記録が入ったら、その人格に切り替える', () => {
+    const logs = [log('1', 'A', 9)];
+    const override = buildViewerOverride(logs, 'B');
+    expect(resolveBoardViewer(logs, override)).toBe('B');
+    // あとから、前の時刻の記録を足しても、いちばん新しい記録は変わらないので選び直したまま
+    expect(resolveBoardViewer([...logs, log('0', 'C', 8)], override)).toBe('B');
+    // 新しい記録が入った
+    expect(resolveBoardViewer([...logs, log('2', 'C', 12)], override)).toBe('C');
+    // 記録が1件もないときに「わからない」以外を選んだ
+    expect(resolveBoardViewer([], buildViewerOverride([], 'A'))).toBe('A');
   });
 });
 

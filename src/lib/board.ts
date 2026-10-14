@@ -1,7 +1,18 @@
 // 掲示板(SPEC.md 22章)。すべて純粋関数(同じ入力なら同じ結果)。
 // アプリは操作している人格を知らないので、直す・消すときは本人確認の文を出す(バケットと同じ)
 import type { FormResult } from './clinicNotes';
-import type { Alter, Board, BoardComment, BoardSeen, BoardThread, Reaction, ReactionKind, ReactionTargetType } from './types';
+import { latestSwitchLog } from './switchLog';
+import type {
+  Alter,
+  Board,
+  BoardComment,
+  BoardSeen,
+  BoardThread,
+  Reaction,
+  ReactionKind,
+  ReactionTargetType,
+  SwitchLog,
+} from './types';
 import { isDuplicateName } from './validation';
 
 /** ホームの板の ID と名前(SPEC.md 22.2)。この ID は変えないこと */
@@ -82,9 +93,56 @@ export interface ThreadSummary {
   hasNew: boolean;
 }
 
-/** 新着があるか(SPEC.md 22.4)。「見た」の記録がない、または見たあとに新しい書き込みがある */
-export function hasNewPost(latest: string, seen: BoardSeen | undefined): boolean {
-  return seen === undefined || latest > seen.seenPostAt;
+/**
+ * いま見ている人格(SPEC.md 22.4)。人格のID、「わからない」は null。
+ * 選び直したときは、そのときのいちばん新しい交代の記録の ID も覚えておき、新しい記録が入ったら選び直しをやめる
+ */
+export interface BoardViewerOverride {
+  alterId: string | null;
+  /** 選び直したときの、いちばん新しい交代の記録の ID(記録がなければ null) */
+  latestLogId: string | null;
+}
+
+/**
+ * いま見ている人格を決める(SPEC.md 22.4)。
+ * 交代の記録のいちばん新しい記録の人格(記録がなければ「わからない」= null)。
+ * 選び直していて、そのあと新しい交代の記録が入っていなければ、選び直した人格
+ */
+export function resolveBoardViewer(
+  logs: readonly Pick<SwitchLog, 'id' | 'noticedAt' | 'switchedAt' | 'alterId'>[],
+  override: BoardViewerOverride | null,
+): string | null {
+  const latest = latestSwitchLog(logs);
+  if (override !== null && override.latestLogId === (latest?.id ?? null)) {
+    return override.alterId;
+  }
+  return latest?.alterId ?? null;
+}
+
+/** 選び直しを作る(いまのいちばん新しい交代の記録を覚える) */
+export function buildViewerOverride(
+  logs: readonly Pick<SwitchLog, 'id' | 'noticedAt' | 'switchedAt'>[],
+  alterId: string | null,
+): BoardViewerOverride {
+  return { alterId, latestLogId: latestSwitchLog(logs)?.id ?? null };
+}
+
+/**
+ * 新着があるか(SPEC.md 22.4)。
+ * いま見ている人格の「見た」より新しい、ほかの人格(「わからない」を含む)の書き込みがあれば新着。
+ * 自分が書いたものは新着にしない。「わからない」として見ているときは、書き込みがあれば新着
+ * @param posts スレッドの本文とコメント(書いた人格と書いた日時)
+ * @param seen いま見ている人格の、そのスレッドの「見た」の記録
+ */
+export function hasNewPost(
+  posts: readonly Pick<BoardComment, 'alterId' | 'createdAt'>[],
+  viewerAlterId: string | null,
+  seen: BoardSeen | undefined,
+): boolean {
+  if (viewerAlterId === null) {
+    return posts.length > 0;
+  }
+  return posts.some((post) => post.alterId !== viewerAlterId && (seen === undefined || post.createdAt > seen.seenPostAt));
 }
 
 /**
@@ -96,40 +154,47 @@ export function buildThreadSummaries(input: {
   threads: readonly BoardThread[];
   comments: readonly BoardComment[];
   seens: readonly BoardSeen[];
+  /** いま見ている人格(「わからない」は null) */
+  viewerAlterId: string | null;
 }): ThreadSummary[] {
-  const seenById = new Map(input.seens.map((seen) => [seen.threadId, seen]));
-  const countByThread = new Map<string, number>();
+  const { viewerAlterId } = input;
+  const seenById = new Map(
+    input.seens.filter((seen) => seen.alterId === viewerAlterId).map((seen) => [seen.threadId, seen]),
+  );
+  const commentsByThread = new Map<string, BoardComment[]>();
   for (const comment of input.comments) {
-    countByThread.set(comment.threadId, (countByThread.get(comment.threadId) ?? 0) + 1);
+    commentsByThread.set(comment.threadId, [...(commentsByThread.get(comment.threadId) ?? []), comment]);
   }
   return input.threads
     .filter((thread) => input.boardId === null || thread.boardId === input.boardId)
     .map((thread) => {
-      const latest = latestPostAt(thread, input.comments);
+      const own = commentsByThread.get(thread.id) ?? [];
       return {
         thread,
-        latestPostAt: latest,
-        commentCount: countByThread.get(thread.id) ?? 0,
-        hasNew: hasNewPost(latest, seenById.get(thread.id)),
+        latestPostAt: latestPostAt(thread, own),
+        commentCount: own.length,
+        hasNew: hasNewPost([thread, ...own], viewerAlterId, seenById.get(thread.id)),
       };
     })
     .sort((a, b) => b.latestPostAt.localeCompare(a.latestPostAt) || b.thread.createdAt.localeCompare(a.thread.createdAt));
 }
 
-/** 新着のあるスレッドの数(タブのバッジ。SPEC.md 22.4) */
+/** いま見ている人格にとって、新着のあるスレッドの数(タブのバッジ。SPEC.md 22.4) */
 export function countNewThreads(input: {
   threads: readonly BoardThread[];
   comments: readonly BoardComment[];
   seens: readonly BoardSeen[];
+  viewerAlterId: string | null;
 }): number {
   return buildThreadSummaries({ ...input, boardId: null }).filter((summary) => summary.hasNew).length;
 }
 
-/** 新着のあるスレッドがある板の ID */
+/** いま見ている人格にとって、新着のあるスレッドがある板の ID */
 export function boardsWithNew(input: {
   threads: readonly BoardThread[];
   comments: readonly BoardComment[];
   seens: readonly BoardSeen[];
+  viewerAlterId: string | null;
 }): Set<string> {
   return new Set(
     buildThreadSummaries({ ...input, boardId: null })

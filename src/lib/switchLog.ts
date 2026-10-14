@@ -60,6 +60,11 @@ export function compareSwitchLogs(a: SwitchLogOrderKey, b: SwitchLogOrderKey): n
   );
 }
 
+/** いちばん新しい記録(記録の時刻の順。compareSwitchLogs)。記録がなければ null */
+export function latestSwitchLog<T extends SwitchLogOrderKey>(logs: readonly T[]): T | null {
+  return logs.reduce<T | null>((latest, log) => (latest === null || compareSwitchLogs(log, latest) > 0 ? log : latest), null);
+}
+
 /**
  * 交代前の人格を推測する(SPEC.md 17.3)。
  * target より前で、いちばん新しい記録の「交代した人格」。前の記録がなければ null(わからない)。

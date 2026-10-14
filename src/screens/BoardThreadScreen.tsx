@@ -1,5 +1,6 @@
 // スレッドの画面(SPEC.md 22.3):題名と本文、コメント(古い順)、それぞれのリアクション、「＋ コメントを書く」
-// 開いたら「見た」にする。開いている間に書き込みが増えたときも「見た」にする(SPEC.md 22.4)
+// 開いたら、いま見ている人格について「見た」にする。開いている間に書き込みが増えたときも「見た」にする(SPEC.md 22.4)
+// 「わからない」として見ているときは「見た」を記録しない
 import { useEffect } from 'react';
 import { PostCard } from '../components/board/PostCard';
 import { ReactionBar } from '../components/board/ReactionBar';
@@ -15,6 +16,8 @@ interface Props {
   kinds: readonly ReactionKind[];
   /** すべての人格(非表示も含む) */
   alters: Alter[];
+  /** いま見ている人格(「わからない」は null) */
+  viewerAlterId: string | null;
   onBack: () => void;
   onEditThread: () => void;
   onEditComment: (comment: BoardComment) => void;
@@ -27,6 +30,7 @@ export function BoardThreadScreen({
   reactions,
   kinds,
   alters,
+  viewerAlterId,
   onBack,
   onEditThread,
   onEditComment,
@@ -38,10 +42,10 @@ export function BoardThreadScreen({
 
   // 開いたとき・書き込みが増えたときに「見た」にする
   useEffect(() => {
-    markThreadSeen(db, thread.id).catch((error: unknown) => {
+    markThreadSeen(db, thread.id, viewerAlterId).catch((error: unknown) => {
       console.error('「見た」を記録できませんでした', error);
     });
-  }, [thread.id, latest]);
+  }, [thread.id, latest, viewerAlterId]);
 
   return (
     <main className="app">

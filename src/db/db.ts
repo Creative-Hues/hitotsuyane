@@ -1,5 +1,5 @@
 // データベースの定義(Dexie = IndexedDB を使いやすくするライブラリ)
-import { Dexie, type EntityTable, type Transaction } from 'dexie';
+import { Dexie, type EntityTable, type Table, type Transaction } from 'dexie';
 import type {
   Alter,
   AlterCategory,
@@ -67,7 +67,7 @@ export class AppDatabase extends Dexie {
   boardComments!: EntityTable<BoardComment, 'id'>;
   reactionKinds!: EntityTable<ReactionKind, 'id'>;
   reactions!: EntityTable<Reaction, 'id'>;
-  boardSeen!: EntityTable<BoardSeen, 'threadId'>;
+  boardSeen!: Table<BoardSeen, [string, string]>;
   meta!: EntityTable<AppMeta, 'key'>;
 
   // データベースの名前は src/lib/appTarget.ts で決める(SPEC.md 19章・21章)。
@@ -144,7 +144,8 @@ export class AppDatabase extends Dexie {
         boardComments: 'id, threadId',
         reactionKinds: 'id, order',
         reactions: 'id, targetId, alterId',
-        boardSeen: 'threadId',
+        // 「見た」の記録は、人格とスレッドの組が主キー
+        boardSeen: '[alterId+threadId], threadId',
       })
       .upgrade((tx) => addInitialBoardData(tx, new Date()));
     // 新しく入れたとき(版1〜9の upgrade を通らない)の最初のデータ

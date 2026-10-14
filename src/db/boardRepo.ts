@@ -83,17 +83,23 @@ export async function deleteBoard(database: AppDatabase, id: string): Promise<bo
 
 // ---- 「見た」の記録(SPEC.md 22.4) ----
 
-/** スレッドを「見た」にする(いちばん新しい書き込みの日時を記録する)。トランザクションの中でも外でも呼べる */
-export async function markThreadSeen(database: AppDatabase, threadId: string): Promise<void> {
+/**
+ * いま見ている人格について、スレッドを「見た」にする(いちばん新しい書き込みの日時を記録する。SPEC.md 22.4)。
+ * 「わからない」(null)として見ているときは記録しない
+ */
+export async function markThreadSeen(database: AppDatabase, threadId: string, viewerAlterId: string | null): Promise<void> {
+  if (viewerAlterId === null) {
+    return;
+  }
   await database.transaction('rw', [database.boardThreads, database.boardComments, database.boardSeen], async () => {
     const thread = await database.boardThreads.get(threadId);
     if (!thread) {
       return;
     }
     const seenPostAt = latestPostAt(thread, await database.boardComments.where('threadId').equals(threadId).toArray());
-    const current = await database.boardSeen.get(threadId);
+    const current = await database.boardSeen.get([viewerAlterId, threadId]);
     if (current?.seenPostAt !== seenPostAt) {
-      await database.boardSeen.put({ threadId, seenPostAt });
+      await database.boardSeen.put({ alterId: viewerAlterId, threadId, seenPostAt });
     }
   });
 }
@@ -108,7 +114,7 @@ export interface ThreadInput {
   body: string;
 }
 
-/** スレッドを立てる。自分で書いたものは新着にしないので、「見た」にする */
+/** スレッドを立てる(自分が書いたものは、新着の判定で数えない。SPEC.md 22.4) */
 export async function addThread(database: AppDatabase, input: ThreadInput, now: Date): Promise<BoardThread> {
   const thread: BoardThread = {
     id: crypto.randomUUID(),
@@ -119,10 +125,7 @@ export async function addThread(database: AppDatabase, input: ThreadInput, now: 
     createdAt: now.toISOString(),
     editedAt: null,
   };
-  await database.transaction('rw', [database.boardThreads, database.boardComments, database.boardSeen], async () => {
-    await database.boardThreads.add(thread);
-    await markThreadSeen(database, thread.id);
-  });
+  await database.boardThreads.add(thread);
   return thread;
 }
 
@@ -143,12 +146,12 @@ export async function deleteThread(database: AppDatabase, id: string): Promise<v
     const commentIds = (await database.boardComments.where('threadId').equals(id).toArray()).map((c) => c.id);
     await database.reactions.where('targetId').anyOf([id, ...commentIds]).delete();
     await database.boardComments.bulkDelete(commentIds);
-    await database.boardSeen.delete(id);
+    await database.boardSeen.where('threadId').equals(id).delete();
     await database.boardThreads.delete(id);
   });
 }
 
-/** コメントを書く。自分で書いたものは新着にしないので、スレッドを「見た」にする */
+/** コメントを書く(自分が書いたものは、新着の判定で数えない。SPEC.md 22.4) */
 export async function addComment(
   database: AppDatabase,
   input: { threadId: string; alterId: string | null; body: string },
@@ -162,10 +165,7 @@ export async function addComment(
     createdAt: now.toISOString(),
     editedAt: null,
   };
-  await database.transaction('rw', [database.boardThreads, database.boardComments, database.boardSeen], async () => {
-    await database.boardComments.add(comment);
-    await markThreadSeen(database, comment.threadId);
-  });
+  await database.boardComments.add(comment);
   return comment;
 }
 

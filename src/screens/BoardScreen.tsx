@@ -1,13 +1,16 @@
 // 掲示板(SPEC.md 22章):板の切り替え・スレッドの一覧(新しい書き込みがあった順)・新着の印
 // 「掲示板」タブを開くと出る(タブの一番上の画面なので「‹ 戻る」は出さない)
 // 板の設定・スレッドの画面・書き込みの入力と編集は、この画面の中で開く
+// 一番上に「[人格A]として見ています」を出す。新着は、いま見ている人格にとってのもの(SPEC.md 22.4)
 import { useState } from 'react';
+import { AlterButtons } from '../components/common/AlterButtons';
 import { AlterNameLabel } from '../components/common/AlterNameLabel';
 import { db } from '../db/db';
 import { useListScroll } from '../hooks/useListScroll';
 import { useLiveQuery } from '../hooks/useLiveQuery';
 import { boardsWithNew, buildThreadSummaries, resolveSelectedBoard, sortBoards } from '../lib/board';
 import { resolveRecordAlter } from '../lib/completionLabel';
+import { useTerm } from '../hooks/useTerm';
 import { formatPostDateTime } from '../lib/timeFormat';
 import { BoardPostEditScreen, type PostTarget } from './BoardPostEditScreen';
 import { BoardSettingsScreen } from './BoardSettingsScreen';
@@ -30,7 +33,17 @@ type PostTargetRef =
   | { kind: 'newComment'; threadId: string }
   | { kind: 'editComment'; threadId: string; commentId: string };
 
-export function BoardScreen() {
+interface Props {
+  /** いま見ている人格(「わからない」は null) */
+  viewerAlterId: string | null;
+  /** 「[人格A]として見ています」から選び直したとき */
+  onChangeViewer: (alterId: string | null) => void;
+}
+
+export function BoardScreen({ viewerAlterId, onChangeViewer }: Props) {
+  const { t } = useTerm();
+  // 「いま見ている人格」を選び直すシートを出しているか
+  const [pickingViewer, setPickingViewer] = useState(false);
   const alters = useLiveQuery(() => db.alters.toArray());
   const boards = useLiveQuery(() => db.boards.toArray());
   const threads = useLiveQuery(() => db.boardThreads.toArray());
@@ -116,6 +129,7 @@ export function BoardScreen() {
           reactions={reactions}
           kinds={kinds}
           alters={alters}
+          viewerAlterId={viewerAlterId}
           onBack={backToList}
           onEditThread={() => setView({ kind: 'post', target: { kind: 'editThread', threadId: thread.id }, returnTo: view })}
           onEditComment={(comment) =>
@@ -133,9 +147,11 @@ export function BoardScreen() {
 
   const sortedBoards = sortBoards(boards);
   const boardId = resolveSelectedBoard(boards, selectedBoardId);
-  const withNew = boardsWithNew({ threads, comments, seens });
-  const summaries = buildThreadSummaries({ boardId, threads, comments, seens });
+  const withNew = boardsWithNew({ threads, comments, seens, viewerAlterId });
+  const summaries = buildThreadSummaries({ boardId, threads, comments, seens, viewerAlterId });
   const alterById = new Map(alters.map((alter) => [alter.id, alter]));
+  const viewer = resolveRecordAlter({ alterId: viewerAlterId }, alterById);
+  const visibleAlters = alters.filter((alter) => !alter.hidden).sort((a, b) => a.order - b.order);
 
   return (
     <main className="app">
@@ -147,6 +163,12 @@ export function BoardScreen() {
           板の設定
         </button>
       </div>
+      {/* いま見ている人格。押すと選び直せる(交代の記録は作らない) */}
+      <button type="button" className="board-viewer" onClick={() => setPickingViewer(true)}>
+        <AlterNameLabel name={viewer.name} color={viewer.color} />
+        <span>として見ています</span>
+        <span className="board-viewer__change">変える</span>
+      </button>
       <div className="board-switcher" role="group" aria-label="板の切り替え">
         {sortedBoards.map((board) => {
           const selected = board.id === boardId;
@@ -200,6 +222,26 @@ export function BoardScreen() {
             );
           })}
         </ul>
+      )}
+      {pickingViewer && (
+        <div className="overlay overlay--bottom">
+          <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="board-viewer-title">
+            <h2 id="board-viewer-title" className="sheet__title">
+              {t('いま見ている人格は?')}
+            </h2>
+            <p className="settings-note">{t('交代の記録は作りません。新しい交代の記録が入ると、その人格に切り替わります。')}</p>
+            <AlterButtons
+              alters={visibleAlters}
+              onSelect={(alterId) => {
+                onChangeViewer(alterId);
+                setPickingViewer(false);
+              }}
+            />
+            <button type="button" className="sheet__cancel" onClick={() => setPickingViewer(false)}>
+              キャンセル
+            </button>
+          </div>
+        </div>
       )}
     </main>
   );

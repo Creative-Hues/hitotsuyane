@@ -2228,6 +2228,28 @@ body {
 
 /* ---- ブラッシュアップ フェーズ4:掲示板(SPEC.md 22章) ---- */
 
+/* 「[人格A]として見ています」(SPEC.md 22.4)。押すと選び直せる */
+.board-viewer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  background: rgba(128, 128, 128, 0.08);
+  color: inherit;
+  text-align: left;
+}
+
+.board-viewer__change {
+  margin-left: auto;
+  color: #1f6fd1;
+  font-size: 0.875rem;
+}
+
 /* 板の切り替え。板が多いときは折り返す */
 .board-switcher {
   display: flex;

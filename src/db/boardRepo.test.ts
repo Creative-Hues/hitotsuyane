@@ -62,29 +62,43 @@ describe('掲示板の保存(SPEC.md 22章)', () => {
     expect(await deleteBoard(database, added.item.id)).toBe(true);
   });
 
-  it('自分で書いたスレッド・コメントは新着にならない。ほかの書き込みのあと開くと新着が消える', async () => {
+  it('新着は人格ごと:交代したあとの人格には、前の人格の書き込みが新着になる。開いた人格の分だけ消える(SPEC.md 22.4)', async () => {
+    // 人格A がスレッドを立てる
     const thread = await newThread();
-    const summary = async () => buildThreadSummaries({
+    const hasNew = async (viewerAlterId: string | null) =>
+      buildThreadSummaries({
+        boardId: HOME_BOARD_ID,
+        threads: await database.boardThreads.toArray(),
+        comments: await database.boardComments.toArray(),
+        seens: await database.boardSeen.toArray(),
+        viewerAlterId,
+      })[0].hasNew;
+    // 自分(人格A)が書いたものは新着にならない。人格B にとっては新着
+    expect(await hasNew('alter-a')).toBe(false);
+    expect(await hasNew('alter-b')).toBe(true);
+    // 人格B が開くと、人格B の新着は消える
+    await markThreadSeen(database, thread.id, 'alter-b');
+    expect(await hasNew('alter-b')).toBe(false);
+    // 人格B がコメントを書く → 人格A にとって新着、人格B にとっては新着ではない
+    await addComment(database, { threadId: thread.id, alterId: 'alter-b', body: '行く' }, later);
+    expect(await hasNew('alter-a')).toBe(true);
+    expect(await hasNew('alter-b')).toBe(false);
+    await markThreadSeen(database, thread.id, 'alter-a');
+    expect(await hasNew('alter-a')).toBe(false);
+  });
+
+  it('「わからない」として見ているときは、いつも新着として出し、「見た」は記録しない', async () => {
+    const thread = await newThread();
+    await markThreadSeen(database, thread.id, null);
+    expect(await database.boardSeen.count()).toBe(0);
+    const list = buildThreadSummaries({
       boardId: HOME_BOARD_ID,
       threads: await database.boardThreads.toArray(),
-      comments: await database.boardComments.toArray(),
-      seens: await database.boardSeen.toArray(),
-    })[0];
-    expect((await summary()).hasNew).toBe(false);
-    await addComment(database, { threadId: thread.id, alterId: 'alter-b', body: '行く' }, later);
-    expect((await summary()).hasNew).toBe(false);
-    // ほかの端末の操作の代わりに、「見た」より新しいコメントを直接入れる
-    await database.boardComments.add({
-      id: 'other',
-      threadId: thread.id,
-      alterId: null,
-      body: 'あとで',
-      createdAt: new Date(2026, 9, 14, 14, 0).toISOString(),
-      editedAt: null,
+      comments: [],
+      seens: [],
+      viewerAlterId: null,
     });
-    expect((await summary()).hasNew).toBe(true);
-    await markThreadSeen(database, thread.id);
-    expect((await summary()).hasNew).toBe(false);
+    expect(list[0].hasNew).toBe(true);
   });
 
   it('直すと「編集済み」の日時が入り、書いた日時は変わらない', async () => {
@@ -111,6 +125,8 @@ describe('掲示板の保存(SPEC.md 22章)', () => {
     await react('comment', c1.id);
     await react('comment', c2.id);
     await react('thread', keep.id);
+    await markThreadSeen(database, thread.id, 'alter-a');
+    await markThreadSeen(database, keep.id, 'alter-a');
 
     await deleteComment(database, c1.id);
     expect(await database.reactions.count()).toBe(3);
@@ -118,6 +134,7 @@ describe('掲示板の保存(SPEC.md 22章)', () => {
     expect(await database.boardComments.count()).toBe(0);
     expect((await database.reactions.toArray()).map((r) => r.targetId)).toEqual([keep.id]);
     expect((await database.boardSeen.toArray()).map((s) => s.threadId)).toEqual([keep.id]);
+    // (「見た」の記録は、開いたスレッドだけにある)
   });
 
   it('リアクション:同じ人格・同じリアクションをもう一度選ぶと外れる', async () => {

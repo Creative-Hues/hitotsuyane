@@ -335,9 +335,11 @@ export interface Reaction {
   createdAt: string;
 }
 
-/** 掲示板の「見た」の記録(端末の設定と同じ扱い。バックアップに入れない。SPEC.md 22.4) */
+/** 掲示板の「見た」の記録(人格ごと・スレッドごと。端末の設定と同じ扱いで、バックアップに入れない。SPEC.md 22.4) */
 export interface BoardSeen {
-  /** スレッドのID(主キー) */
+  /** 見た人格のID(人格とスレッドの組が主キー。「わからない」のときは記録しない) */
+  alterId: string;
+  /** スレッドのID */
   threadId: string;
   /** 最後に見たときの、いちばん新しい書き込みの日時(ISO形式) */
   seenPostAt: string;

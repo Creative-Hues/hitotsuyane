@@ -17,7 +17,7 @@ import { IS_TEST_SITE } from './lib/appTarget';
 import { IntroScreen } from './screens/IntroScreen';
 import { AlterInfoScreen } from './screens/AlterInfoScreen';
 import { BoardScreen } from './screens/BoardScreen';
-import { badgeText, countNewThreads } from './lib/board';
+import { badgeText, buildViewerOverride, countNewThreads, resolveBoardViewer, type BoardViewerOverride } from './lib/board';
 import { BucketScreen } from './screens/BucketScreen';
 import { ClinicNoteScreen } from './screens/ClinicNoteScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -73,13 +73,20 @@ function App() {
   const [introClosed, setIntroClosed] = useState(false);
   // 「人格を登録する」を押した回数(押すたびに、人格タブで人格の追加の画面を開く)
   const [addAlterRequest, setAddAlterRequest] = useState(0);
-  // 掲示板のタブのバッジ:新着のあるスレッドの数(SPEC.md 22.4)
-  const newThreadCount = useLiveQuery(async () =>
-    countNewThreads({
-      threads: await db.boardThreads.toArray(),
-      comments: await db.boardComments.toArray(),
-      seens: await db.boardSeen.toArray(),
-    }),
+  // 掲示板の「いま見ている人格」(SPEC.md 22.4):いちばん新しい交代の記録の人格。選び直しはアプリを開いている間だけ覚える
+  const switchLogs = useLiveQuery(() => db.switchLogs.toArray());
+  const [viewerOverride, setViewerOverride] = useState<BoardViewerOverride | null>(null);
+  const boardViewer = resolveBoardViewer(switchLogs ?? [], viewerOverride);
+  // 掲示板のタブのバッジ:いま見ている人格にとって、新着のあるスレッドの数(SPEC.md 22.4)
+  const newThreadCount = useLiveQuery(
+    async () =>
+      countNewThreads({
+        threads: await db.boardThreads.toArray(),
+        comments: await db.boardComments.toArray(),
+        seens: await db.boardSeen.toArray(),
+        viewerAlterId: boardViewer,
+      }),
+    [boardViewer],
   );
   const boardBadge = badgeText(newThreadCount ?? 0);
 
@@ -175,7 +182,12 @@ function App() {
       </>
     ),
     switch: <SwitchLogScreen />,
-    board: <BoardScreen />,
+    board: (
+      <BoardScreen
+        viewerAlterId={boardViewer}
+        onChangeViewer={(alterId) => setViewerOverride(buildViewerOverride(switchLogs ?? [], alterId))}
+      />
+    ),
     alters: <AlterInfoScreen backupRequest={backupRequest} addAlterRequest={addAlterRequest} />,
   };
 
